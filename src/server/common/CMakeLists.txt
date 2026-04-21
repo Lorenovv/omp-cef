@@ -19,6 +19,7 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/..
         ${CMAKE_SOURCE_DIR}/deps
         ${CMAKE_SOURCE_DIR}/deps/pawn-natives
+        ${CMAKE_SOURCE_DIR}/deps/pawn/source
         ${CMAKE_SOURCE_DIR}/deps/samp-plugin-sdk
         ${CMAKE_SOURCE_DIR}/deps/asio/asio/include
         ${CMAKE_SOURCE_DIR}/deps/kcp

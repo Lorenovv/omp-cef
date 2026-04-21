@@ -1,11 +1,13 @@
 project(ServerOmp LANGUAGES CXX)
 
-# You can change this path for development
-#set(DLL_DEPLOY_DIR "${CMAKE_SOURCE_DIR}/tests/omp/components")
-#set(INC_DEPLOY_DIR "${CMAKE_SOURCE_DIR}/tests/omp/qawno/include")
-
-set(DLL_DEPLOY_DIR "E:/multiplayer/aurora-mp/rpg/env/components")
-set(INC_DEPLOY_DIR "${CMAKE_SOURCE_DIR}/tests/omp/qawno/include")
+# Deploy paths are configurable via -D options. When unset we skip the post-build
+# deploy step so CI / packaging jobs don't need a real components dir.
+if(NOT DEFINED DLL_DEPLOY_DIR)
+    set(DLL_DEPLOY_DIR "" CACHE PATH "Optional post-build deploy target for Cef.dll")
+endif()
+if(NOT DEFINED INC_DEPLOY_DIR)
+    set(INC_DEPLOY_DIR "" CACHE PATH "Optional post-build deploy target for cef.inc")
+endif()
 
 file(GLOB_RECURSE SERVER_OMP_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
@@ -52,14 +54,16 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     PREFIX ""
 )
 
-if(NOT DEFINED ENV{CI})
+if(INC_DEPLOY_DIR)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_SOURCE_DIR}/src/server/cef.inc"
             "${INC_DEPLOY_DIR}/cef.inc"
         COMMENT "Deploying cef.inc to ${INC_DEPLOY_DIR}"
     )
+endif()
 
+if(DLL_DEPLOY_DIR)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:${PROJECT_NAME}>
