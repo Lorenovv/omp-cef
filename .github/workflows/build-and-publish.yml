@@ -1,0 +1,101 @@
+name: Build & Publish
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
+
+jobs:
+  build:
+    name: Build cef.so (linux x64, vcpkg)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build g++ pkg-config curl zip unzip tar
+
+      - name: Export GitHub Actions cache vars (for vcpkg binary cache)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: '3f51ee54c1b56a8c84cdd23eb1b6a7eaf65bb01f'
+
+      - name: Configure
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_MANIFEST_FEATURES=server \
+            -DBUILD_SERVER_OMP=ON
+
+      - name: Build
+        run: cmake --build build --config RelWithDebInfo
+
+      - name: Stage artifact
+        run: |
+          mkdir -p artifact-stage
+          # Component output location varies — search the build tree for any .so under server/.
+          find build -path '*/server/*' -name '*.so' -exec cp {} artifact-stage/ \;
+          ls -la artifact-stage/
+          test -n "$(ls -A artifact-stage/)" || (echo "::error::no .so produced under build/**/server/"; exit 1)
+
+      - name: Generate artifact Dockerfile
+        run: |
+          cat > artifact-stage/Dockerfile <<'EOF'
+          FROM scratch
+          COPY *.so /
+          EOF
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push artifact image
+        uses: docker/build-push-action@v5
+        with:
+          context: artifact-stage
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
