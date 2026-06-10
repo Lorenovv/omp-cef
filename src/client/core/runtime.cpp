@@ -46,7 +46,7 @@ void Runtime::UpdateBrowserDrawState()
 
     const HWND hwnd = gta_ ? gta_->GetHwnd() : nullptr;
     const bool window_active = hwnd && ::IsWindow(hwnd) && (::GetForegroundWindow() == hwnd);
-    const bool pause_menu_open = FrontEndMenuManager.m_bMenuActive && FrontEndMenuManager.m_nCurrentMenuPage == MENUPAGE_PAUSE_MENU;
+    const bool pause_menu_open = FrontEndMenuManager.m_bMenuActive;
 
     browser_->SetDrawEnabled(window_active && !pause_menu_open);
 }
