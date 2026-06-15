@@ -19,6 +19,7 @@
 - ✅ VFS / packaged resources encrypted (`.pak`)
 - ✅ Events: `cef.emit(...)` -> client -> UDP -> server → Pawn/C#
 - ✅ Focus/cursor management
+- ✅ Custom ESC Menu
 
 ## Supported clients
 
