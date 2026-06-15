@@ -996,7 +996,7 @@ void BrowserManager::OnPaint(int id, const void* buffer, int width, int height)
 
 bool BrowserManager::RenderAll()
 {
-    if (!draw_enabled_)
+    if (ShouldSkipBrowserRendering())
         return false;
 
     UpdateAudioSpatialization();
@@ -1099,6 +1099,9 @@ bool BrowserManager::RenderAll()
 
 void BrowserManager::OnBeforeEntityRender(CEntity* entity)
 {
+    if (ShouldSkipBrowserRendering())
+        return;
+
     auto it = entityToBrowserId_.find(entity);
     if (it == entityToBrowserId_.end())
         return;
@@ -1131,6 +1134,9 @@ BrowserInstance* BrowserManager::GetBrowserInstance(int id)
 
 bool BrowserManager::IsAnyBrowserVisible() const
 {
+    if (ShouldSkipBrowserRendering())
+        return false;
+
     for (const auto& [id, browser] : browsers_)
     {
         if (browser && browser->visible)
@@ -1286,6 +1292,62 @@ void BrowserManager::ExitGame()
     ExitProcess(0);
 }
 
+void BrowserManager::SetEscapeMenuMode(EscapeMenuMode mode)
+{
+    const EscapeMenuMode previous = escape_menu_.SetMode(mode);
+    const EscapeMenuMode current = escape_menu_.GetMode();
+
+    DispatchEscapeMenuEvents();
+
+    if (previous != current)
+    {
+        LOG_INFO("[CEF] Escape menu mode changed: {} -> {}",
+            EscapeMenuController::GetModeName(previous),
+            EscapeMenuController::GetModeName(current));
+    }
+}
+
+bool BrowserManager::ShouldSkipBrowserRendering() const
+{
+    return !draw_enabled_ || escape_menu_.IsNativePauseMenuVisible();
+}
+
+void BrowserManager::DispatchEscapeMenuEvents()
+{
+    if (escape_menu_.HasPendingCustomMenuVisibilityChange())
+    {
+        EmitCustomEscapeMenuVisibility();
+    }
+}
+
+void BrowserManager::EmitCustomEscapeMenuVisibility()
+{
+    if (!CefCurrentlyOn(TID_UI))
+    {
+        CefPostTask(TID_UI, base::BindOnce(&BrowserManager::EmitCustomEscapeMenuVisibility, base::Unretained(this)));
+        return;
+    }
+
+    const bool visible = escape_menu_.IsCustomMenuOpen();
+
+    for (const auto& [id, instance] : browsers_)
+    {
+        if (!instance || !instance->browser || !instance->browser->IsValid())
+            continue;
+
+        CefRefPtr<CefFrame> frame = instance->browser->GetMainFrame();
+        if (!frame || !frame->IsValid())
+            continue;
+
+        CefRefPtr<CefProcessMessage> msg = CefProcessMessage::Create("emit_event");
+        CefRefPtr<CefListValue> list = msg->GetArgumentList();
+        list->SetString(0, "cef:escape_menu");
+        list->SetBool(1, visible);
+
+        frame->SendProcessMessage(PID_RENDERER, msg);
+    }
+}
+
 void BrowserManager::OnDeviceLost()
 {
     // Stop CEF rendering during device reset
@@ -1341,6 +1403,12 @@ void BrowserManager::OnDeviceReset(IDirect3DDevice9* device)
 
 LRESULT BrowserManager::OnWndProcMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    if (escape_menu_.ConsumeWndProcMessage(msg, wParam, lParam))
+    {
+        DispatchEscapeMenuEvents();
+        return true;
+    }
+
     if (msg == WM_KEYDOWN || msg == WM_KEYUP || msg == WM_SYSKEYDOWN || msg == WM_SYSKEYUP)
     {
         if (key_capture_enabled_ && network_.GetState() == ConnectionState::CONNECTED && !network_.IsNonCefServer())

@@ -100,6 +100,21 @@ enum E_HUD_COMPONENT
     HUD_COMPONENT_WEAPON
 };
 
+/**
+ * Defines how GTA San Andreas' native ESC/pause menu is handled by the client.
+ */
+enum E_CEF_ESCAPE_MENU_MODE
+{
+    // Default GTA behavior: ESC opens the native GTA pause menu.
+    CEF_ESCAPE_MENU_GTA = 0,
+
+    // ESC input is consumed and the native GTA pause menu is closed if it appears.
+    CEF_ESCAPE_MENU_DISABLED,
+
+    // ESC input is consumed and every browser receives cef:escape_menu(bool:visible).
+    CEF_ESCAPE_MENU_CUSTOM
+};
+
  /**
  * Checks if a player has successfully completed the CEF "handshake".
  *
@@ -410,6 +425,17 @@ native CEF_SetKeyCapture(playerid, bool:enabled);
  * @param playerid  The ID of the player.
  */
 native CEF_ExitGame(playerid);
+
+/**
+ * Sets how GTA San Andreas' native ESC/pause menu should be handled.
+ *
+ * In CUSTOM mode, JavaScript can listen with:
+ *     cef.on("cef:escape_menu", (visible) => { ... });
+ *
+ * @param playerid  The ID of the player.
+ * @param mode      One of E_CEF_ESCAPE_MENU_MODE.
+ */
+native CEF_SetEscapeMenuMode(playerid, E_CEF_ESCAPE_MENU_MODE:mode);
 
 /**
  * CALLBACKS

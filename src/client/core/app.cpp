@@ -409,7 +409,7 @@ void App::OnPacketReceived(const NetworkPacket& packet)
 
                 QueueOrCreateWorld(id, url, textureName, width, height);
             }
-            else if (event.name == CefEvent::Server::CreateWorld2DBrowser && event.args.size() >= 6) {
+            else if (event.name == CefEvent::Server::CreateWorld2DBrowser && event.args.size() >= 10) {
                 int id = event.args[0].intValue;
                 const std::string& url = event.args[1].stringValue;
                 float worldX = event.args[2].floatValue;
@@ -540,6 +540,12 @@ void App::OnPacketReceived(const NetworkPacket& packet)
             else if (event.name == CefEvent::Server::ExitGame)
             {
                 browser_.ExitGame();
+            }
+            else if (event.name == CefEvent::Server::SetEscapeMenuMode && event.args.size() >= 1)
+            {
+                int mode = event.args[0].intValue;
+
+                browser_.SetEscapeMenuMode(static_cast<EscapeMenuMode>(mode));
             }
             break;
         }

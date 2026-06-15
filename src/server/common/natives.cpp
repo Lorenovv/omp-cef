@@ -134,3 +134,8 @@ PAWN_NATIVE(Natives, CEF_ExitGame, void(int playerid))
 {
     CefApi::Instance()->ExitGame(playerid);
 }
+
+PAWN_NATIVE(Natives, CEF_SetEscapeMenuMode, void(int playerid, int mode))
+{
+    CefApi::Instance()->SetEscapeMenuMode(playerid, mode);
+}
