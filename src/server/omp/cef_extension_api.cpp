@@ -232,6 +232,13 @@ public:
         auto& list = CefHandlerList();
         list.erase(std::remove(list.begin(), list.end(), h), list.end());
     }
+
+    void setEscapeMenuMode(int playerid, int mode) override
+    {
+        auto* api = CefApi::Instance();
+        if (api) 
+            api->SetEscapeMenuMode(playerid, mode);
+    }
 };
 
 static CefExtension g_cefExtension;

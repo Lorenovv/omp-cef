@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "client.hpp"
+#include "escape_menu.hpp"
 #include "player_stats.hpp"
 #include "include/base/cef_callback.h"
 #include "include/cef_app.h"
@@ -152,6 +153,9 @@ public:
 
     void ExitGame();
 
+    // Native GTA SA ESC/pause menu handling
+    void SetEscapeMenuMode(EscapeMenuMode mode);
+
     // Callbacks from BrowserClient
     void OnBrowserCreated(int id, CefRefPtr<CefBrowser> browser);
     void OnBrowserClosed(int id);
@@ -193,6 +197,10 @@ private:
     void CreateWorldBrowserInternal(int id, const std::string& url, std::string textureName, float width, float height);
     void CreateWorld2DBrowserInternal(int id, const std::string& url, float worldX, float worldY, float worldZ, float width, float height, float offsetZ, float pivotX, float pivotY);
 
+    bool ShouldSkipBrowserRendering() const;
+    void DispatchEscapeMenuEvents();
+    void EmitCustomEscapeMenuVisibility();
+
     CEntity* GetEntityFromObjectId(int objectId);
     void ClearPendingPaint(int id);
     void SendExternalBeginFrames();
@@ -230,4 +238,7 @@ private:
     std::bitset<256> key_allowed_{};
 
     std::unordered_map<int, PlayerStatsPollState> player_stats_poll_;
+
+    // Native GTA SA ESC/pause menu handling
+    EscapeMenuController escape_menu_;
 };

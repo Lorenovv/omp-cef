@@ -310,3 +310,20 @@ void CefApi::ExitGame(int playerid)
 
 	plugin_.SendPacketToPlayer(playerid, PacketType::EmitEvent, event);
 }
+
+void CefApi::SetEscapeMenuMode(int playerid, int mode)
+{
+    if (mode < 0 || mode > 2)
+    {
+        LOG_ERROR("SetEscapeMenuMode: invalid mode %d for playerid=%d", mode, playerid);
+        return;
+    }
+
+    LOG_DEBUG("SetEscapeMenuMode: playerid=%d, mode=%d", playerid, mode);
+
+    EmitEventPacket event;
+    event.name = CefEvent::Server::SetEscapeMenuMode;
+    event.args.emplace_back(mode);
+
+    plugin_.SendPacketToPlayer(playerid, PacketType::EmitEvent, event);
+}

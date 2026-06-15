@@ -89,6 +89,10 @@ private:
     unsigned short net_port_ = 0;
     unsigned long long next_connect_attempt_ms_ = 0;
 
+    int connected_player_id_ = -1;
+    std::string connected_game_host_;
+    int connected_game_port_ = 0;
+
     bool flushed_once_ = false;
     std::vector<PendingCreate> pending_creates_;
     std::vector<PendingEmit> pending_emits_;

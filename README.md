@@ -9,7 +9,7 @@
 
 ---
 
-### Current CEF version: 143.0.14+gdd46a37+chromium-143.0.7499.193
+### Current CEF version: 148.0.10+g7ee53f5+chromium-148.0.7778.218
 
 ## Features
 
@@ -19,6 +19,7 @@
 - ✅ VFS / packaged resources encrypted (`.pak`)
 - ✅ Events: `cef.emit(...)` -> client -> UDP -> server → Pawn/C#
 - ✅ Focus/cursor management
+- ✅ Custom ESC Menu
 
 ## Supported clients
 

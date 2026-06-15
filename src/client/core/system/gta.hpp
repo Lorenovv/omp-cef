@@ -27,6 +27,7 @@ public:
     bool IsReady() const { return hwnd_.load(std::memory_order_acquire) != nullptr; }
 
     void SetOnHwndFound(std::function<void(HWND)> callback);
+    void PostToMainThread(std::function<void()> fn);
 
 private:
     HWND FindHwndFromMemory();
@@ -36,8 +37,6 @@ private:
 
     void SearchThreadLoop();
     void OnHwndDiscovered(HWND hwnd);
-
-    void PostToMainThread(std::function<void()> fn);
 
     struct SearchData { DWORD pid; HWND result; };
 
