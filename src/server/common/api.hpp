@@ -49,6 +49,8 @@ public:
     void EnableKey(int playerid, int key, bool enabled);
 
     void ExitGame(int playerid);
+
+    void SetEscapeMenuMode(int playerid, int mode);
 private:
     CefPlugin& plugin_;
 

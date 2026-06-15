@@ -86,6 +86,9 @@ struct ICefComponent : public IExtension
     // Miscellaneous.
     virtual void exitGame(int playerid) = 0;
 
+    // Native GTA ESC/pause menu.
+    virtual void setEscapeMenuMode(int playerid, int mode) = 0;
+
     // Event-handler registry.
     virtual void addEventHandler(ICefEventHandler* handler) = 0;
     virtual void removeEventHandler(ICefEventHandler* handler) = 0;
