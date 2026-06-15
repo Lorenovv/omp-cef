@@ -60,7 +60,7 @@ void NetworkManager::Shutdown()
 {
 	Disconnect();
 
-	if (network_thread_.joinable()) {
+	if (network_thread_.joinable() && network_thread_.get_id() != std::this_thread::get_id()) {
 		network_thread_.join();
 	}
 }
@@ -68,6 +68,12 @@ void NetworkManager::Shutdown()
 void NetworkManager::Connect(int playerid)
 {
     LOG_INFO("[CLIENT] Connect() called with playerid={}", playerid);
+
+    if (network_thread_.joinable() && network_thread_.get_id() != std::this_thread::get_id())
+    {
+        network_thread_.join();
+        CleanupTransport();
+    }
 
     ConnectionState expected = ConnectionState::DISCONNECTED;
     if (!state_.compare_exchange_strong(expected, ConnectionState::SENDING_JOIN, std::memory_order_acq_rel, std::memory_order_acquire))
@@ -130,20 +136,24 @@ void NetworkManager::Disconnect()
 	LOG_INFO("[CLIENT] Disconnecting...");
 	FireSessionActive(false);
 
-	asio::post(io_context_, [this]() {
-		connect_timer_.cancel();
-		kcp_update_timer_.cancel();
+    if (network_thread_.joinable() && network_thread_.get_id() == std::this_thread::get_id())
+    {
+        asio::post(io_context_, [this]() {
+            CleanupTransport();
+        });
+        return;
+    }
 
-        {
-            std::lock_guard<std::mutex> lock(kcp_mutex_);
-            if (kcp_instance_) {
-                ikcp_release(kcp_instance_);
-                kcp_instance_ = nullptr;
-            }
-        }
+    if (network_thread_.joinable())
+    {
+        asio::post(io_context_, [this]() {
+            CleanupTransport();
+        });
 
-		if (socket_.is_open()) socket_.close();
-	});
+        network_thread_.join();
+    }
+
+    CleanupTransport();
 }
 
 void NetworkManager::DoSendRequestJoin()
@@ -332,6 +342,33 @@ void NetworkManager::HandleKcpInput()
 		{ std::lock_guard lock(handler_mutex_); handler = packet_handler_; }
 		if (handler) handler(packet);
 	}
+}
+
+void NetworkManager::CleanupTransport()
+{
+    asio::error_code ignored;
+
+    connect_timer_.cancel();
+    kcp_update_timer_.cancel();
+
+    {
+        std::lock_guard<std::mutex> lock(kcp_mutex_);
+        if (kcp_instance_)
+        {
+            ikcp_release(kcp_instance_);
+            kcp_instance_ = nullptr;
+        }
+    }
+
+    if (socket_.is_open())
+        socket_.close(ignored);
+
+    rx_key_.clear();
+    tx_key_.clear();
+    client_public_key_.clear();
+    client_private_key_.clear();
+    join_attempts_ = 0;
+    playerid_ = -1;
 }
 
 void NetworkManager::FireSessionActive(bool active)

@@ -162,64 +162,117 @@ void App::FlushPendingIfReady()
 
 void App::Tick()
 {
+    const auto now = ::GetTickCount64();
+    auto* netGame = GetComponent<NetGameComponent>();
+
+    if (network_.GetState() != ConnectionState::DISCONNECTED)
+    {
+        bool should_reset_network_session = false;
+        std::string reset_reason;
+
+        if (!netGame || !netGame->IsConnected())
+        {
+            should_reset_network_session = true;
+            reset_reason = "SA-MP is no longer connected";
+        }
+        else
+        {
+            const int localPlayerId = netGame->GetLocalPlayerId();
+            const std::string host = netGame->GetIp();
+            const int gamePort = netGame->GetPort();
+
+            if (localPlayerId < 0 || host.empty() || gamePort <= 0)
+            {
+                should_reset_network_session = true;
+                reset_reason = "invalid SA-MP connection metadata";
+            }
+            else if (connected_player_id_ >= 0 && localPlayerId != connected_player_id_)
+            {
+                should_reset_network_session = true;
+                reset_reason = "SA-MP local player id changed";
+            }
+            else if (!connected_game_host_.empty() && (host != connected_game_host_ || gamePort != connected_game_port_))
+            {
+                should_reset_network_session = true;
+                reset_reason = "SA-MP server endpoint changed";
+            }
+        }
+
+        if (should_reset_network_session)
+        {
+            LOG_INFO("[CEF] Resetting network session: {}", reset_reason.c_str());
+
+            network_.Disconnect();
+            resources_.OnDisconnect();
+            ResetSession();
+
+            net_endpoint_ready_ = false;
+            net_host_.clear();
+            net_port_ = 0;
+            connected_player_id_ = -1;
+            connected_game_host_.clear();
+            connected_game_port_ = 0;
+            next_connect_attempt_ms_ = now + 500ULL;
+        }
+    }
+
     if (network_.GetState() == ConnectionState::DISCONNECTED && !network_.IsNonCefServer())
     {
-        const auto now = ::GetTickCount64();
         const bool can_attempt_connect = (now >= next_connect_attempt_ms_);
 
-        auto* netGame = GetComponent<NetGameComponent>();
-        if (can_attempt_connect && netGame)
+        if (can_attempt_connect && netGame && netGame->IsConnected())
         {
-            const int mode = netGame->GetState();
-
-            if (netGame->IsConnected())
+            const int localPlayerId = netGame->GetLocalPlayerId();
+            if (localPlayerId >= 0)
             {
-                const int localPlayerId = netGame->GetLocalPlayerId();
-                if (localPlayerId >= 0)
+                const std::string host = netGame->GetIp();
+                const int gamePort = netGame->GetPort();
+
+                if (!host.empty() && gamePort > 0)
                 {
-                    const std::string host = netGame->GetIp();
-                    const int gamePort = netGame->GetPort();
+                    const int cefPortInt = gamePort + cef_port_offset_;
 
-                    if (!host.empty() && gamePort > 0)
+                    if (cefPortInt <= 0 || cefPortInt > 65535)
                     {
-                        const int cefPortInt = gamePort + cef_port_offset_;
+                        LOG_ERROR("[CEF] Invalid computed CEF port: gamePort={} offset={} => {}", gamePort, cef_port_offset_, cefPortInt);
+                        next_connect_attempt_ms_ = now + 2000ULL;
+                    }
+                    else
+                    {
+                        const unsigned short cefPort = static_cast<unsigned short>(cefPortInt);
 
-                        if (cefPortInt <= 0 || cefPortInt > 65535)
+                        const bool endpoint_changed =
+                            (!net_endpoint_ready_ || host != net_host_ || cefPort != net_port_);
+
+                        if (endpoint_changed)
                         {
-                            LOG_ERROR("[CEF] Invalid computed CEF port: gamePort={} offset={} => {}", gamePort, cef_port_offset_, cefPortInt);
-                            next_connect_attempt_ms_ = now + 2000ULL;
-                        }
-                        else
-                        {
-                            const unsigned short cefPort = static_cast<unsigned short>(cefPortInt);
+                            net_endpoint_ready_ = false;
 
-                            const bool endpoint_changed =
-                                (!net_endpoint_ready_ || host != net_host_ || cefPort != net_port_);
-
-                            if (endpoint_changed)
+                            if (!network_.Initialize(host, cefPort))
                             {
-                                net_endpoint_ready_ = false;
+                                LOG_ERROR("[CEF] Failed to init endpoint {}:{} (game {} + {}) - will retry", host.c_str(), (int)cefPort, gamePort, cef_port_offset_);
+                                next_connect_attempt_ms_ = now + 2000ULL;
+                            }
+                            else
+                            {
+                                net_endpoint_ready_ = true;
+                                net_host_ = host;
+                                net_port_ = cefPort;
 
-                                if (!network_.Initialize(host, cefPort))
-                                {
-                                    LOG_ERROR("[CEF] Failed to init endpoint {}:{} (game {} + {}) - will retry", host.c_str(), (int)cefPort, gamePort, cef_port_offset_);
-                                    next_connect_attempt_ms_ = now + 2000ULL;
-                                }
-                                else
-                                {
-                                    net_endpoint_ready_ = true;
-                                    net_host_ = host;
-                                    net_port_ = cefPort;
-
-                                    LOG_INFO("[CEF] Endpoint {}:{} (derived from {}:{})", net_host_.c_str(), (int)net_port_, host.c_str(), gamePort);
-                                }
-
-                                LOG_DEBUG("[CEF] Server endpoint changed -> resetting session state.");
-                                ResetSession();
+                                LOG_INFO("[CEF] Endpoint {}:{} (derived from {}:{})", net_host_.c_str(), (int)net_port_, host.c_str(), gamePort);
                             }
 
-                            if (net_endpoint_ready_)
-                                network_.Connect(localPlayerId);
+                            LOG_DEBUG("[CEF] Server endpoint changed -> resetting session state.");
+                            resources_.OnDisconnect();
+                            ResetSession();
+                        }
+
+                        if (net_endpoint_ready_)
+                        {
+                            connected_player_id_ = localPlayerId;
+                            connected_game_host_ = host;
+                            connected_game_port_ = gamePort;
+                            network_.Connect(localPlayerId);
                         }
                     }
                 }
@@ -524,6 +577,10 @@ void App::OnPacketReceived(const NetworkPacket& packet)
 void App::Shutdown()
 {
     LOG_INFO("Shutdown omp-cef client app ...");
+
+    network_.Shutdown();
+    resources_.OnDisconnect();
+    ResetSession();
 
     browser_.Shutdown();
     audio_.Shutdown();

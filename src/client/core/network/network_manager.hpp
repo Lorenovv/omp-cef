@@ -59,6 +59,7 @@ private:
 
 	void HandleRawMessage(const char* data, size_t len);
 	void HandleKcpInput();
+	void CleanupTransport();
 
 	void FireSessionActive(bool active);
 
