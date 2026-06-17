@@ -1,6 +1,6 @@
-# omp-cef — CEF Plugin (open.mp + SA:MP)
+# omp-cef — CEF Plugin (open.mp + SA-MP)
 
-### Client/Server CEF plugin for open.mp / SA:MP
+### Client/Server CEF plugin for open.mp / SA-MP
 - **Server** (open.mp component & SA-MP plugin with bridge concept): Secure UDP handshake + resource distribution (packaged ressources) + events.
 - **Client** (injected DLL / plugin): off-screen CEF rendering in GTA SA, overlay / world texture Browsers, JS <-> client <-> server events.
 
@@ -40,7 +40,7 @@
 
 ```
 src/
-  client/          # client plugin (CEF offscreen + DX9 + SA:MP hooks)
+  client/          # client plugin (CEF offscreen + DX9 + SA-MP hooks)
   server/
     common/        # network core, sessions, resources, protocol
     omp/           # open.mp component (bridge + lifecycle + natives)
@@ -63,7 +63,7 @@ CMakePresets.json  # CMake presets (configure/build presets for VS/CMake)
 
 ### Client runtime
 - GTA San Andreas with .ASI Loader
-- SA:MP / open.mp client compatible
+- SA-MP / open.mp client compatible
 - `cef/` folder deployed in the GTA directory (binaries, locales, etc.)
 
 ### Server runtime
@@ -90,7 +90,7 @@ cmake -S . -B build `
   -DVCPKG_TARGET_TRIPLET=x86-windows
 ```
 
-> ⚠️ The triplet depends on your target (often **x86** for GTA SA / SA:MP).
+> ⚠️ The triplet depends on your target (often **x86** for GTA SA / SA-MP).
 
 ### 3) Build
 
