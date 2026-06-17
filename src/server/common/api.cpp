@@ -152,6 +152,19 @@ void CefApi::FocusBrowser(int playerid, int browserid, bool focused)
 	plugin_.SendPacketToPlayer(playerid, PacketType::EmitEvent, event);
 }
 
+void CefApi::LoadUrl(int playerid, int browserid, const std::string& url)
+{
+    LOG_DEBUG("LoadUrl: playerid=%d, browserid=%d, url=%.*s", playerid, browserid, static_cast<int>(url.size()), url.data());
+
+    EmitEventPacket event;
+
+    event.name = CefEvent::Server::LoadUrl;
+    event.args.emplace_back(browserid);
+    event.args.emplace_back(url);
+
+    plugin_.SendPacketToPlayer(playerid, PacketType::EmitEvent, event);
+}
+
 void CefApi::EnableDevTools(int playerid, int browserid, bool enabled)
 {
 	LOG_DEBUG("EnableDevTools: playerid=%d, browserid=%d, enabled=%d", playerid, browserid, enabled);

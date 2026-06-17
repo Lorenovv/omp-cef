@@ -254,6 +254,15 @@ native CEF_ReloadBrowser(playerid, browserid, bool:ignore_cache = false);
 native CEF_FocusBrowser(playerid, id, bool:focused);
 
 /**
+ * Loads a new URL in an existing browser for a specific player.
+ *
+ * @param playerid      The ID of the player.
+ * @param browserid     The ID of the browser.
+ * @param url           The URL to load.
+ */
+native CEF_LoadUrl(playerid, browserid, const url[]);
+
+/**
  * Enables or disables Chromium DevTools for a specific browser of a player.
  *
  * @param playerid  The ID of the player.

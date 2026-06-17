@@ -65,6 +65,11 @@ PAWN_NATIVE(Natives, CEF_FocusBrowser, void(int playerid, int id, bool focused))
      CefApi::Instance()->FocusBrowser(playerid, id, focused);
 }
 
+PAWN_NATIVE(Natives, CEF_LoadUrl, void(int playerid, int browserid, const std::string& url))
+{
+    CefApi::Instance()->LoadUrl(playerid, browserid, url);
+}
+
 PAWN_NATIVE(Natives, CEF_EnableDevTools, void(int playerid, int browserid, bool enabled))
 {
      CefApi::Instance()->EnableDevTools(playerid, browserid, enabled);

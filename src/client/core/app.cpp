@@ -457,6 +457,13 @@ void App::OnPacketReceived(const NetworkPacket& packet)
 
                 browser_.FocusBrowser(browserId, toggle);
             }
+            else if (event.name == CefEvent::Server::LoadUrl && event.args.size() >= 2)
+            {
+                const int browserId = event.args[0].intValue;
+                const std::string& url = event.args[1].stringValue;
+
+                browser_.LoadUrl(browserId, url);
+            }
             else if (event.name == CefEvent::Server::AttachBrowserToObject && event.args.size() >= 2)
             {
                 int browserId = event.args[0].intValue;

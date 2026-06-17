@@ -60,6 +60,7 @@ struct ICefComponent : public IExtension
     // Browser utilities.
     virtual void reloadBrowser(int playerid, int browserid, bool ignoreCache) = 0;
     virtual void focusBrowser(int playerid, int browserid, bool focused) = 0;
+    virtual void loadUrl(int playerid, int browserid, const char* url) = 0;
     virtual void enableDevTools(int playerid, int browserid, bool enabled) = 0;
 
     // World-browser attachment.

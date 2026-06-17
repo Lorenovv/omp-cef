@@ -132,6 +132,12 @@ public:
         if (api) api->FocusBrowser(playerid, browserid, focused);
     }
 
+    void loadUrl(int playerid, int browserid, const char* url) override
+    {
+        auto* api = CefApi::Instance();
+        if (api) api->LoadUrl(playerid, browserid, Str(url));
+    }
+
     void enableDevTools(int playerid, int browserid, bool enabled) override
     {
         auto* api = CefApi::Instance();

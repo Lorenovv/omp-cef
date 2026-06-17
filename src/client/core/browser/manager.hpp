@@ -90,7 +90,6 @@ struct PendingPaint
     uint64_t tick = 0;
 };
 
-
 class BrowserManager
 {
 public:
@@ -130,6 +129,7 @@ public:
     void DestroyBrowser(int id);
     void DestroyAllBrowsers();
     void ReloadBrowser(int id, bool ignoreCache);
+    void LoadUrl(int id, const std::string& url);
     void SetDevToolsEnabled(int browserId, bool enabled);
 
     // 3D World interaction

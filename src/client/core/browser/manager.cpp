@@ -841,6 +841,33 @@ void BrowserManager::ReloadBrowser(int id, bool ignoreCache)
     }
 }
 
+void BrowserManager::LoadUrl(int id, const std::string& url)
+{
+    if (!CefCurrentlyOn(TID_UI))
+    {
+        CefPostTask(TID_UI, base::BindOnce(&BrowserManager::LoadUrl, base::Unretained(this), id, url));
+        return;
+    }
+
+    auto* inst = GetBrowserInstance(id);
+    if (!inst || !inst->browser)
+    {
+        LOG_WARN("[CEF] LoadUrl: Could not find browser with ID {}.", id);
+        return;
+    }
+
+    auto frame = inst->browser->GetMainFrame();
+    if (!frame)
+    {
+        LOG_WARN("[CEF] LoadUrl: Browser ID {} has no main frame.", id);
+        return;
+    }
+
+    frame->LoadURL(url);
+
+    LOG_DEBUG("[CEF] Loading URL in browser ID {}: {}", id, url);
+}
+
 void BrowserManager::SetDevToolsEnabled(int browserId, bool enabled)
 {
     if (!CefCurrentlyOn(TID_UI))
