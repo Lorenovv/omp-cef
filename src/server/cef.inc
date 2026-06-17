@@ -115,6 +115,21 @@ enum E_CEF_ESCAPE_MENU_MODE
     CEF_ESCAPE_MENU_CUSTOM
 };
 
+/**
+ * Defines how SA-MP/open.mp's native TAB player list / scoreboard is handled by the client.
+ */
+enum E_CEF_PLAYER_LIST_MODE
+{
+    // Default behavior: TAB opens the native SA-MP/open.mp player list / scoreboard.
+    CEF_PLAYER_LIST_DEFAULT = 0,
+
+    // TAB input is consumed and the native player list is not opened.
+    CEF_PLAYER_LIST_DISABLED,
+
+    // TAB input is consumed and every browser receives cef:player_list(bool:visible).
+    CEF_PLAYER_LIST_CUSTOM
+};
+
  /**
  * Checks if a player has successfully completed the CEF "handshake".
  *
@@ -445,6 +460,17 @@ native CEF_ExitGame(playerid);
  * @param mode      One of E_CEF_ESCAPE_MENU_MODE.
  */
 native CEF_SetEscapeMenuMode(playerid, E_CEF_ESCAPE_MENU_MODE:mode);
+
+/**
+ * Sets how SA-MP/open.mp's native TAB player list / scoreboard should be handled.
+ *
+ * In CUSTOM mode, JavaScript can listen with:
+ *     cef.on("cef:player_list", (visible) => { ... });
+ *
+ * @param playerid  The ID of the player.
+ * @param mode      One of E_CEF_PLAYER_LIST_MODE.
+ */
+native CEF_SetPlayerListMode(playerid, E_CEF_PLAYER_LIST_MODE:mode);
 
 /**
  * CALLBACKS

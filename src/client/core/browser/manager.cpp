@@ -1148,6 +1148,8 @@ void BrowserManager::DispatchExternalBeginFramesOnUi()
 
 bool BrowserManager::RenderAll()
 {
+    UpdateNativeUiInput();
+
     if (ShouldSkipBrowserRendering())
         return false;
 
@@ -1480,7 +1482,7 @@ void BrowserManager::SetEscapeMenuMode(EscapeMenuMode mode)
     const EscapeMenuMode previous = escape_menu_.SetMode(mode);
     const EscapeMenuMode current = escape_menu_.GetMode();
 
-    DispatchEscapeMenuEvents();
+    DispatchNativeUiEvents();
 
     if (previous != current)
     {
@@ -1495,12 +1497,34 @@ bool BrowserManager::ShouldSkipBrowserRendering() const
     return !draw_enabled_ || escape_menu_.IsNativePauseMenuVisible();
 }
 
-void BrowserManager::DispatchEscapeMenuEvents()
+bool BrowserManager::IsFocusedTextInputActive() const
+{
+    if (!focus_ || focusedBrowserId_ < 0)
+        return false;
+
+    const auto browser = browsers_.find(focusedBrowserId_);
+    return browser != browsers_.end()
+        && browser->second
+        && focus_->IsTextInputFocused(browser->second->id);
+}
+
+void BrowserManager::UpdateNativeUiInput()
+{
+    bool changed = false;
+
+    changed = escape_menu_.UpdateInput() || changed;
+
+    if (changed)
+        DispatchNativeUiEvents();
+}
+
+void BrowserManager::DispatchNativeUiEvents()
 {
     if (escape_menu_.HasPendingCustomMenuVisibilityChange())
-    {
         EmitCustomEscapeMenuVisibility();
-    }
+
+    if (player_list_.HasPendingCustomPlayerListVisibilityChange())
+        EmitCustomPlayerListVisibility();
 }
 
 void BrowserManager::EmitCustomEscapeMenuVisibility()
@@ -1529,6 +1553,68 @@ void BrowserManager::EmitCustomEscapeMenuVisibility()
 
         frame->SendProcessMessage(PID_RENDERER, msg);
     }
+}
+
+void BrowserManager::EmitCustomPlayerListVisibility()
+{
+    if (!CefCurrentlyOn(TID_UI))
+    {
+        CefPostTask(TID_UI, base::BindOnce(&BrowserManager::EmitCustomPlayerListVisibility, base::Unretained(this)));
+        return;
+    }
+
+    const bool visible = player_list_.IsCustomPlayerListOpen();
+
+    for (const auto& [id, instance] : browsers_)
+    {
+        if (!instance || !instance->browser || !instance->browser->IsValid())
+            continue;
+
+        CefRefPtr<CefFrame> frame = instance->browser->GetMainFrame();
+        if (!frame || !frame->IsValid())
+            continue;
+
+        CefRefPtr<CefProcessMessage> msg = CefProcessMessage::Create("emit_event");
+        CefRefPtr<CefListValue> list = msg->GetArgumentList();
+        list->SetString(0, "cef:player_list");
+        list->SetBool(1, visible);
+
+        frame->SendProcessMessage(PID_RENDERER, msg);
+    }
+}
+
+void BrowserManager::SetPlayerListMode(PlayerListMode mode)
+{
+    const PlayerListMode previous = player_list_.SetMode(mode);
+    const PlayerListMode current = player_list_.GetMode();
+
+    DispatchNativeUiEvents();
+
+    if (previous != current)
+    {
+        LOG_INFO("[CEF] Player list mode changed: {} -> {}",
+            PlayerListController::GetModeName(previous),
+            PlayerListController::GetModeName(current));
+    }
+}
+
+
+bool BrowserManager::ShouldSuppressNativePlayerList() const
+{
+    return PlayerListController::ShouldSuppressNativePlayerList(player_list_.GetMode());
+}
+
+bool BrowserManager::HandleNativePlayerListOpenRequest()
+{
+    const bool should_suppress = ShouldSuppressNativePlayerList();
+    if (!should_suppress)
+        return false;
+
+    const bool changed = player_list_.HandleNativePlayerListOpenRequest(!IsFocusedTextInputActive());
+    if (changed)
+        DispatchNativeUiEvents();
+
+    return true;
 }
 
 void BrowserManager::OnDeviceLost()
@@ -1586,9 +1672,16 @@ void BrowserManager::OnDeviceReset(IDirect3DDevice9* device)
 
 LRESULT BrowserManager::OnWndProcMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    if (escape_menu_.ConsumeWndProcMessage(msg, wParam, lParam))
+    bool native_ui_message_consumed = false;
+
+    native_ui_message_consumed = escape_menu_.ConsumeWndProcMessage(msg, wParam, lParam) || native_ui_message_consumed;
+
+    if (!IsFocusedTextInputActive())
+        native_ui_message_consumed = player_list_.ConsumeWndProcMessage(msg, wParam, lParam) || native_ui_message_consumed;
+
+    if (native_ui_message_consumed)
     {
-        DispatchEscapeMenuEvents();
+        DispatchNativeUiEvents();
         return true;
     }
 

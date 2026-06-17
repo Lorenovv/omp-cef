@@ -53,6 +53,7 @@ public:
     void ExitGame(int playerid);
 
     void SetEscapeMenuMode(int playerid, int mode);
+    void SetPlayerListMode(int playerid, int mode);
 private:
     CefPlugin& plugin_;
 

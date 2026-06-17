@@ -554,6 +554,12 @@ void App::OnPacketReceived(const NetworkPacket& packet)
 
                 browser_.SetEscapeMenuMode(static_cast<EscapeMenuMode>(mode));
             }
+            else if (event.name == CefEvent::Server::SetPlayerListMode && event.args.size() >= 1)
+            {
+                int mode = event.args[0].intValue;
+
+                browser_.SetPlayerListMode(static_cast<PlayerListMode>(mode));
+            }
             break;
         }
         case PacketType::EmitBrowserEvent:

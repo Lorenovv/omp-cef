@@ -89,6 +89,9 @@ struct ICefComponent : public IExtension
 
     // Native GTA ESC/pause menu.
     virtual void setEscapeMenuMode(int playerid, int mode) = 0;
+    
+    // Native SA-MP/open.mp TAB player list / scoreboard.
+    virtual void setPlayerListMode(int playerid, int mode) = 0;
 
     // Event-handler registry.
     virtual void addEventHandler(ICefEventHandler* handler) = 0;
