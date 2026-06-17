@@ -9,6 +9,7 @@
 
 #include "client.hpp"
 #include "escape_menu.hpp"
+#include "player_list.hpp"
 #include "player_stats.hpp"
 #include "include/base/cef_callback.h"
 #include "include/cef_app.h"
@@ -156,6 +157,11 @@ public:
     // Native GTA SA ESC/pause menu handling
     void SetEscapeMenuMode(EscapeMenuMode mode);
 
+    // Native SA:MP/open.mp TAB player list / scoreboard handling
+    void SetPlayerListMode(PlayerListMode mode);
+    bool ShouldSuppressNativePlayerList() const;
+    bool HandleNativePlayerListOpenRequest();
+
     // Callbacks from BrowserClient
     void OnBrowserCreated(int id, CefRefPtr<CefBrowser> browser);
     void OnBrowserClosed(int id);
@@ -198,8 +204,11 @@ private:
     void CreateWorld2DBrowserInternal(int id, const std::string& url, float worldX, float worldY, float worldZ, float width, float height, float offsetZ, float pivotX, float pivotY);
 
     bool ShouldSkipBrowserRendering() const;
-    void DispatchEscapeMenuEvents();
+    bool IsFocusedTextInputActive() const;
+    void UpdateNativeUiInput();
+    void DispatchNativeUiEvents();
     void EmitCustomEscapeMenuVisibility();
+    void EmitCustomPlayerListVisibility();
 
     CEntity* GetEntityFromObjectId(int objectId);
     void ClearPendingPaint(int id);
@@ -241,4 +250,7 @@ private:
 
     // Native GTA SA ESC/pause menu handling
     EscapeMenuController escape_menu_;
+
+    // Native SA-MP/open.mp TAB player list / scoreboard handling
+    PlayerListController player_list_;
 };

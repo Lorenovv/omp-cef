@@ -144,3 +144,8 @@ PAWN_NATIVE(Natives, CEF_SetEscapeMenuMode, void(int playerid, int mode))
 {
     CefApi::Instance()->SetEscapeMenuMode(playerid, mode);
 }
+
+PAWN_NATIVE(Natives, CEF_SetPlayerListMode, void(int playerid, int mode))
+{
+    CefApi::Instance()->SetPlayerListMode(playerid, mode);
+}

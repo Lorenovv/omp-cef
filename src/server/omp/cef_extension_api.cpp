@@ -245,6 +245,13 @@ public:
         if (api) 
             api->SetEscapeMenuMode(playerid, mode);
     }
+
+    void setPlayerListMode(int playerid, int mode) override
+    {
+        auto* api = CefApi::Instance();
+        if (api)
+            api->SetPlayerListMode(playerid, mode);
+    }
 };
 
 static CefExtension g_cefExtension;
