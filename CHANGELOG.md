@@ -1,90 +1,4 @@
 
-## [1.3.0](https://github.com/aurora-mp/omp-cef/compare/v1.2.0..v1.3.0) (2026-06-19)
-
-### 🧹 Chore
-
-- *(client)* Disable draw if game is paused - ([6bee79f](https://github.com/aurora-mp/omp-cef/commit/6bee79fd33144a27d1b028536244058a2eeba4fe))
-- *(client)* Some improvements/fixes #17 - ([7a95408](https://github.com/aurora-mp/omp-cef/commit/7a95408f4e781ae3d34d4ecb627ff78c9d5bb3f0))
-- *(runtime)* Disable draw if game is paused - ([ce6e4bd](https://github.com/aurora-mp/omp-cef/commit/ce6e4bd641ae032861c41a22894788b894917ca6))
-- Update .gitignore - ([6dec55f](https://github.com/aurora-mp/omp-cef/commit/6dec55f9d68823e8348ee28944b8ed4866b68e23))
-- Bump version to 1.3.0 - ([7c29e0f](https://github.com/aurora-mp/omp-cef/commit/7c29e0f2d52ce8743860b27a96ee061cf128c41b))
-
-### ✨ Features
-
-- *(server)* Add resource loader UI mode & some improvements - ([55f99fc](https://github.com/aurora-mp/omp-cef/commit/55f99fc2171924e8818445fb1c15ff02dbcb19b8))
-- *(server)* Add resource loader UI mode & some improvements - ([a97da20](https://github.com/aurora-mp/omp-cef/commit/a97da20fdb9b430d8fcfa982ffb3c14aacef81a9))
-- *(server)* Add resource loader UI mode & some improvements - ([a97da20](https://github.com/aurora-mp/omp-cef/commit/a97da20fdb9b430d8fcfa982ffb3c14aacef81a9))
-- *(server)* Add resource loader UI mode & some improvements - ([a97da20](https://github.com/aurora-mp/omp-cef/commit/a97da20fdb9b430d8fcfa982ffb3c14aacef81a9))
-- *(server)* Add resource loader UI mode & some improvements - ([a97da20](https://github.com/aurora-mp/omp-cef/commit/a97da20fdb9b430d8fcfa982ffb3c14aacef81a9))
-- *(server)* Add resource loader UI mode & some improvements - ([a97da20](https://github.com/aurora-mp/omp-cef/commit/a97da20fdb9b430d8fcfa982ffb3c14aacef81a9))
-- *(server)* Add resource loader UI mode & some improvements - ([a97da20](https://github.com/aurora-mp/omp-cef/commit/a97da20fdb9b430d8fcfa982ffb3c14aacef81a9))
-- *(server)* Add resource loader UI mode & some improvements - ([a97da20](https://github.com/aurora-mp/omp-cef/commit/a97da20fdb9b430d8fcfa982ffb3c14aacef81a9))
-- Add custom player list mode with samp scoreboard hook - ([94ad23a](https://github.com/aurora-mp/omp-cef/commit/94ad23a099a29bf8dca76b66fe312c05c1108bb1))
-- Add custom player list mode with samp scoreboard hook (CEF_SetPlayerListMode) - ([42b854f](https://github.com/aurora-mp/omp-cef/commit/42b854ff77fb9aa3a40f8ea325fba3e7f00b6891))
-- Add CEF_LoadUrl (missing native needed to navigate an existing browser) - ([f87bc82](https://github.com/aurora-mp/omp-cef/commit/f87bc824df648991096a503ec4c7f866416d306a))
-- [**breaking**] Update CEF to the latest version - ([0e98977](https://github.com/aurora-mp/omp-cef/commit/0e98977355c491f2a7a75c9fbf8f3a4d8cede145))
-- [**breaking**] Update CEF to the latest version - ([0e98977](https://github.com/aurora-mp/omp-cef/commit/0e98977355c491f2a7a75c9fbf8f3a4d8cede145))
-- Add custom escape menu mode (native CEF_SetEscapeMenuMode) - ([2968640](https://github.com/aurora-mp/omp-cef/commit/2968640e093bd28388deac19a49d5a9070f1aeb4))
-- Add custom escape menu mode (native CEF_SetEscapeMenuMode) - ([5d13e14](https://github.com/aurora-mp/omp-cef/commit/5d13e14753ea8da6d8021a4e5d8c1c941675bcea))
-- Add custom escape menu mode (native CEF_SetEscapeMenuMode) - ([5d13e14](https://github.com/aurora-mp/omp-cef/commit/5d13e14753ea8da6d8021a4e5d8c1c941675bcea))
-- Add custom escape menu mode (native CEF_SetEscapeMenuMode) - ([5d13e14](https://github.com/aurora-mp/omp-cef/commit/5d13e14753ea8da6d8021a4e5d8c1c941675bcea))
-
-### 🐛 Bug Fixes
-
-- *(client)* Clear browser texture on navigation to prevent ghosting - ([d54725d](https://github.com/aurora-mp/omp-cef/commit/d54725d0d36409cda3ca9707c2e5e5a6985c52e6))
-- *(client)* Clear browser texture on navigation to prevent ghosting - ([d54725d](https://github.com/aurora-mp/omp-cef/commit/d54725d0d36409cda3ca9707c2e5e5a6985c52e6))
-- *(client)* Clear browser texture on navigation to prevent ghosting - ([d54725d](https://github.com/aurora-mp/omp-cef/commit/d54725d0d36409cda3ca9707c2e5e5a6985c52e6))
-- *(client)* Clear browser texture on navigation to prevent ghosting - ([d54725d](https://github.com/aurora-mp/omp-cef/commit/d54725d0d36409cda3ca9707c2e5e5a6985c52e6))
-- *(client)* Clear browser texture on navigation to prevent ghosting - ([d54725d](https://github.com/aurora-mp/omp-cef/commit/d54725d0d36409cda3ca9707c2e5e5a6985c52e6))
-- *(client)* Clear browser texture on navigation to prevent ghosting - ([d54725d](https://github.com/aurora-mp/omp-cef/commit/d54725d0d36409cda3ca9707c2e5e5a6985c52e6))
-- *(client)* Clear browser texture on navigation to prevent ghosting - ([d54725d](https://github.com/aurora-mp/omp-cef/commit/d54725d0d36409cda3ca9707c2e5e5a6985c52e6))
-- *(client)* Clear browser texture on navigation to prevent ghosting - ([d54725d](https://github.com/aurora-mp/omp-cef/commit/d54725d0d36409cda3ca9707c2e5e5a6985c52e6))
-- *(client)* Clear browser texture on navigation to prevent ghosting - ([d54725d](https://github.com/aurora-mp/omp-cef/commit/d54725d0d36409cda3ca9707c2e5e5a6985c52e6))
-- *(client)* Clear browser texture on navigation to prevent ghosting - ([d54725d](https://github.com/aurora-mp/omp-cef/commit/d54725d0d36409cda3ca9707c2e5e5a6985c52e6))
-- *(client)* Ensure menu is draw - ([dd478b7](https://github.com/aurora-mp/omp-cef/commit/dd478b7eeff9fd634cab59d5904fa042805a6edb))
-- *(client)* CEF browsers is now hidden in other menus - ([90116ff](https://github.com/aurora-mp/omp-cef/commit/90116ffa02560d4ce889ccb64907b4c5f4b48004))
-- *(client)* Allow overlay browser resolutions above 1440p #25 - ([d211550](https://github.com/aurora-mp/omp-cef/commit/d211550849cc7dde651d71cd914a7340bf2f8900))
-- //empty/ when closing an interface) then showing it flashed the - ([d54725d](https://github.com/aurora-mp/omp-cef/commit/d54725d0d36409cda3ca9707c2e5e5a6985c52e6))
-- :OnBeforeBrowse flags a clear on main-frame navigation to a - ([d54725d](https://github.com/aurora-mp/omp-cef/commit/d54725d0d36409cda3ca9707c2e5e5a6985c52e6))
-- WorldObject3D texture swaps for hidden browsers - ([fd5e81d](https://github.com/aurora-mp/omp-cef/commit/fd5e81d10ac582401281d136ebf0775335d9fced))
-- Handle CEF reconnects after server restarts #31 - ([52c118c](https://github.com/aurora-mp/omp-cef/commit/52c118cc775472185b6140498cfa9f4fcdad68ff))
-- Handle CEF reconnects after server restarts #31 - ([52c118c](https://github.com/aurora-mp/omp-cef/commit/52c118cc775472185b6140498cfa9f4fcdad68ff))
-- Handle CEF reconnects after server restarts #31 - ([52c118c](https://github.com/aurora-mp/omp-cef/commit/52c118cc775472185b6140498cfa9f4fcdad68ff))
-- Handle CEF reconnects after server restarts #31 - ([52c118c](https://github.com/aurora-mp/omp-cef/commit/52c118cc775472185b6140498cfa9f4fcdad68ff))
-- Cef thread races on browser creation (D3D) - ([06fb567](https://github.com/aurora-mp/omp-cef/commit/06fb567f58b9e497dfe6b63a133263c4f157166f))
-
-### 🤖 CI
-
-- Fix cmake (glm issue cause omp-sdk to updated..) - ([17b13d4](https://github.com/aurora-mp/omp-cef/commit/17b13d44e7f2bbc2fb71b1aec532ac533a33f63e))
-
-### ✅ Testing
-
-- *(samp)* Update server.cfg - ([c9aa89f](https://github.com/aurora-mp/omp-cef/commit/c9aa89fe14c758b93da89acecfdc0f989b265c78))
-- Update README - ([3fe314a](https://github.com/aurora-mp/omp-cef/commit/3fe314ad5d81a1e44fb65b451fc1684199d0b929))
-- Update sample - ([ad54250](https://github.com/aurora-mp/omp-cef/commit/ad5425059ab2d33cab907524c76568ebc0c65ab3))
-- Add demo gamemode - ([7465bda](https://github.com/aurora-mp/omp-cef/commit/7465bda34c6baa509cd7f24c0caf292b8425415b))
-
-### ⚡ Performance
-
-- *(client)* Sync CEF frames to render tick - ([f79eb9d](https://github.com/aurora-mp/omp-cef/commit/f79eb9d3651b10788863861b5e2a61b8b9c92c71))
-- *(client)* Sync CEF frames to render tick - ([285814b](https://github.com/aurora-mp/omp-cef/commit/285814bf84d4d96a49f8772302758bd8c26bc020))
-- [**breaking**] Optimize CEF resource packing and cache validation - ([a272bb3](https://github.com/aurora-mp/omp-cef/commit/a272bb3fbcfdb5e6d4b7ebdf41d6729112f821e7))
-- [**breaking**] Optimize CEF resource packing and cache validation - ([a272bb3](https://github.com/aurora-mp/omp-cef/commit/a272bb3fbcfdb5e6d4b7ebdf41d6729112f821e7))
-- [**breaking**] Optimize CEF resource packing and cache validation - ([a272bb3](https://github.com/aurora-mp/omp-cef/commit/a272bb3fbcfdb5e6d4b7ebdf41d6729112f821e7))
-- [**breaking**] Optimize CEF resource packing and cache validation - ([a272bb3](https://github.com/aurora-mp/omp-cef/commit/a272bb3fbcfdb5e6d4b7ebdf41d6729112f821e7))
-- [**breaking**] Optimize CEF resource packing and cache validation - ([a272bb3](https://github.com/aurora-mp/omp-cef/commit/a272bb3fbcfdb5e6d4b7ebdf41d6729112f821e7))
-- [**breaking**] Optimize CEF resource packing and cache validation - ([a272bb3](https://github.com/aurora-mp/omp-cef/commit/a272bb3fbcfdb5e6d4b7ebdf41d6729112f821e7))
-- [**breaking**] Optimize CEF resource packing and cache validation - ([a272bb3](https://github.com/aurora-mp/omp-cef/commit/a272bb3fbcfdb5e6d4b7ebdf41d6729112f821e7))
-
-## New Contributors ❤️
-
-* @godperkys made their first contribution
-* @bssth made their first contribution
-* @ made their first contribution
-* @kyro95 made their first contribution
-
-
-
 ## [1.2.0](https://github.com/aurora-mp/omp-cef/compare/v1.1.0..v1.2.0) (2026-02-19)
 
 ### 🧹 Chore
@@ -346,6 +260,5 @@
 ## New Contributors ❤️
 
 * @NeekoGta made their first contribution
-
 
 
