@@ -31,10 +31,14 @@ jobs:
             ServerOmp|OMP|Omp|omp)
               OPTION="OMP"
               BUILD_TARGET="ServerOmp"
+              WINDOWS_BINARY_NAME="Cef.dll"
+              LINUX_BINARY_NAME="Cef.so"
               ;;
             ServerSamp|SAMP|Samp|samp)
               OPTION="SAMP"
               BUILD_TARGET="ServerSamp"
+              WINDOWS_BINARY_NAME="cef.dll"
+              LINUX_BINARY_NAME="cef.so"
               ;;
             *)
               echo "Unknown inputs.target='${{ inputs.target }}' (expected ServerOmp/ServerSamp)"
@@ -50,10 +54,12 @@ jobs:
             CMAKE_ARCH="-A x64"
           fi
 
-          echo "option=$OPTION"              >> "$GITHUB_OUTPUT"
-          echo "build_target=$BUILD_TARGET"  >> "$GITHUB_OUTPUT"
-          echo "triplet=$TRIPLET"            >> "$GITHUB_OUTPUT"
-          echo "cmake_arch=$CMAKE_ARCH"      >> "$GITHUB_OUTPUT"
+          echo "option=$OPTION"                          >> "$GITHUB_OUTPUT"
+          echo "build_target=$BUILD_TARGET"              >> "$GITHUB_OUTPUT"
+          echo "windows_binary_name=$WINDOWS_BINARY_NAME" >> "$GITHUB_OUTPUT"
+          echo "linux_binary_name=$LINUX_BINARY_NAME"     >> "$GITHUB_OUTPUT"
+          echo "triplet=$TRIPLET"                        >> "$GITHUB_OUTPUT"
+          echo "cmake_arch=$CMAKE_ARCH"                  >> "$GITHUB_OUTPUT"
 
       - name: Cache vcpkg + installed
         uses: actions/cache@v4
@@ -119,13 +125,43 @@ jobs:
           set -euo pipefail
           cmake --build build --config ${{ inputs.build-type }} --target ${{ steps.vars.outputs.build_target }} --parallel
 
+      - name: Stage Server Binary (Windows)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EXPECTED_NAME="${{ steps.vars.outputs.windows_binary_name }}"
+
+          rm -rf artifact-server
+          mkdir -p artifact-server
+
+          mapfile -t candidates < <(
+            find build -type f -name "$EXPECTED_NAME" \
+              -not -path "*/vcpkg_installed/*" \
+              -not -path "*/CMakeFiles/*" \
+              -print
+          )
+
+          echo "Candidates for $EXPECTED_NAME:"
+          if [[ "${#candidates[@]}" -gt 0 ]]; then
+            printf ' - %s\n' "${candidates[@]}"
+          fi
+
+          if [[ "${#candidates[@]}" -ne 1 ]]; then
+            echo "::error::Expected exactly one Windows server binary named $EXPECTED_NAME, found ${#candidates[@]}"
+            exit 1
+          fi
+
+          cp "${candidates[0]}" "artifact-server/$EXPECTED_NAME"
+
+          echo "Staged Windows server artifact:"
+          ls -la artifact-server
+
       - name: Upload Server Binary (Windows)
         uses: actions/upload-artifact@v4
         with:
           name: server-${{ steps.vars.outputs.build_target }}-${{ inputs.arch }}-Windows
-          path: |
-            build/**/${{ inputs.build-type }}/**/*.dll
-            build/**/*.dll
+          path: artifact-server/*
 
   build-linux:
     name: Build ${{ inputs.target }} (${{ inputs.arch }}) on Linux (container ubuntu:20.04)
@@ -186,10 +222,14 @@ jobs:
             ServerOmp|OMP|Omp|omp)
               OPTION="OMP"
               BUILD_TARGET="ServerOmp"
+              WINDOWS_BINARY_NAME="Cef.dll"
+              LINUX_BINARY_NAME="Cef.so"
               ;;
             ServerSamp|SAMP|Samp|samp)
               OPTION="SAMP"
               BUILD_TARGET="ServerSamp"
+              WINDOWS_BINARY_NAME="cef.dll"
+              LINUX_BINARY_NAME="cef.so"
               ;;
             *)
               echo "Unknown inputs.target='${{ inputs.target }}' (expected ServerOmp/ServerSamp)"
@@ -203,9 +243,11 @@ jobs:
             TRIPLET="x64-linux"
           fi
 
-          echo "option=$OPTION"              >> "$GITHUB_OUTPUT"
-          echo "build_target=$BUILD_TARGET"  >> "$GITHUB_OUTPUT"
-          echo "triplet=$TRIPLET"            >> "$GITHUB_OUTPUT"
+          echo "option=$OPTION"                          >> "$GITHUB_OUTPUT"
+          echo "build_target=$BUILD_TARGET"              >> "$GITHUB_OUTPUT"
+          echo "windows_binary_name=$WINDOWS_BINARY_NAME" >> "$GITHUB_OUTPUT"
+          echo "linux_binary_name=$LINUX_BINARY_NAME"     >> "$GITHUB_OUTPUT"
+          echo "triplet=$TRIPLET"                        >> "$GITHUB_OUTPUT"
 
       - name: Cache vcpkg + installed
         uses: actions/cache@v4
@@ -308,10 +350,40 @@ jobs:
             objdump -T "$sofile" | grep -Eo 'GLIBC_[0-9]+\.[0-9]+' | sort -Vu || true
           done < <(find build -type f -name "*.so" -print)
 
+      - name: Stage Server Binary (Linux)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          EXPECTED_NAME="${{ steps.vars.outputs.linux_binary_name }}"
+
+          rm -rf artifact-server
+          mkdir -p artifact-server
+
+          mapfile -t candidates < <(
+            find build -type f -name "$EXPECTED_NAME" \
+              -not -path "*/vcpkg_installed/*" \
+              -not -path "*/CMakeFiles/*" \
+              -print
+          )
+
+          echo "Candidates for $EXPECTED_NAME:"
+          if [[ "${#candidates[@]}" -gt 0 ]]; then
+            printf ' - %s\n' "${candidates[@]}"
+          fi
+
+          if [[ "${#candidates[@]}" -ne 1 ]]; then
+            echo "::error::Expected exactly one Linux server binary named $EXPECTED_NAME, found ${#candidates[@]}"
+            exit 1
+          fi
+
+          cp "${candidates[0]}" "artifact-server/$EXPECTED_NAME"
+
+          echo "Staged Linux server artifact:"
+          ls -la artifact-server
+
       - name: Upload Server Binary (Linux)
         uses: actions/upload-artifact@v4
         with:
           name: server-${{ steps.vars.outputs.build_target }}-${{ inputs.arch }}-Linux
-          path: |
-            build/**/${{ inputs.build-type }}/**/*.so
-            build/**/*.so
+          path: artifact-server/*

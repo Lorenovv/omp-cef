@@ -17,7 +17,9 @@ jobs:
     steps:
       - name: Checkout code (full history)
         uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
       
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -31,45 +33,162 @@ jobs:
         id: prepare_packages
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
+
           mkdir -p release-assets
           mkdir -p package-samp/plugins
           mkdir -p package-omp-x86/components
           mkdir -p package-omp-x64/components
 
+          copy_required_file() {
+            local source="$1"
+            local destination="$2"
+            local label="$3"
+
+            if [[ ! -f "$source" ]]; then
+              echo "::error::Missing $label: $source"
+              exit 1
+            fi
+
+            cp "$source" "$destination"
+            echo "Copied $label: $source -> $destination"
+          }
+
+          assert_pe_machine() {
+            local file="$1"
+            local expected="$2"
+
+            python3 - "$file" "$expected" <<'PYCODE'
+          import struct
+          import sys
+
+          path = sys.argv[1]
+          expected = sys.argv[2]
+
+          with open(path, "rb") as f:
+              f.seek(0x3C)
+              pe_offset = struct.unpack("<I", f.read(4))[0]
+              f.seek(pe_offset + 4)
+              machine = struct.unpack("<H", f.read(2))[0]
+
+          actual = {
+              0x014C: "x86",
+              0x8664: "x64",
+          }.get(machine, f"unknown:0x{machine:04X}")
+
+          if actual != expected:
+              print(f"::error::Invalid PE architecture for {path}. Expected {expected}, got {actual}")
+              sys.exit(1)
+
+          print(f"OK: {path} => {actual}")
+          PYCODE
+          }
+
+          assert_elf_class() {
+            local file="$1"
+            local expected="$2"
+
+            python3 - "$file" "$expected" <<'PYCODE'
+          import sys
+
+          path = sys.argv[1]
+          expected = sys.argv[2]
+
+          with open(path, "rb") as f:
+              ident = f.read(5)
+
+          if len(ident) < 5 or ident[:4] != b"\x7fELF":
+              print(f"::error::Not an ELF file: {path}")
+              sys.exit(1)
+
+          actual = {
+              1: "ELF32",
+              2: "ELF64",
+          }.get(ident[4], f"unknown:{ident[4]}")
+
+          if actual != expected:
+              print(f"::error::Invalid ELF class for {path}. Expected {expected}, got {actual}")
+              sys.exit(1)
+
+          print(f"OK: {path} => {actual}")
+          PYCODE
+          }
+
+          assert_zip_pe_machine() {
+            local zip_file="$1"
+            local inner_file="$2"
+            local expected="$3"
+
+            local tmp_dir
+            tmp_dir="$(mktemp -d)"
+            unzip -q "$zip_file" "$inner_file" -d "$tmp_dir"
+            assert_pe_machine "$tmp_dir/$inner_file" "$expected"
+            rm -rf "$tmp_dir"
+          }
+
           echo "Processing client files..."
-          if [ -d "temp-assets/client-files-v${{ inputs.version }}" ]; then
+          if [[ -d "temp-assets/client-files-v${{ inputs.version }}" ]]; then
             mv temp-assets/client-files-v${{ inputs.version }}/* release-assets/
           fi
-          if [ -d "temp-assets/individual-files-v${{ inputs.version }}" ]; then
+
+          if [[ -d "temp-assets/individual-files-v${{ inputs.version }}" ]]; then
             mv temp-assets/individual-files-v${{ inputs.version }}/cef.asi release-assets/ || true
             mv temp-assets/individual-files-v${{ inputs.version }}/cef/client.dll release-assets/ || true
-            mv temp-assets/individual-files-v${{ inputs.version }}/cef/renderer.exe  release-assets/ || true
+            mv temp-assets/individual-files-v${{ inputs.version }}/cef/renderer.exe release-assets/ || true
           fi
 
           echo "Processing server files..."
           INCLUDE_FILE="src/server/cef.inc"
-          if [ -f "$INCLUDE_FILE" ]; then
-            cp "$INCLUDE_FILE" package-samp/cef.inc
-            cp "$INCLUDE_FILE" package-omp-x86/cef.inc
-            cp "$INCLUDE_FILE" package-omp-x64/cef.inc
-          else
-            echo "Warning: Pawn include file not found at $INCLUDE_FILE"
+          if [[ ! -f "$INCLUDE_FILE" ]]; then
+            echo "::error::Pawn include file not found at $INCLUDE_FILE"
+            exit 1
           fi
 
-          find temp-assets/server-ServerSamp-x86-Windows -name "*.dll" -exec mv {} package-samp/plugins/cef.dll \; || true
-          find temp-assets/server-ServerSamp-x86-Linux  -name "*.so"  -exec mv {} package-samp/plugins/cef.so  \; || true
-          
-          find temp-assets/server-ServerOmp-x86-Windows -name "*.dll" -exec mv {} package-omp-x86/components/Cef.dll \; || true
-          find temp-assets/server-ServerOmp-x86-Linux  -name "*.so"  -exec mv {} package-omp-x86/components/Cef.so  \; || true
+          cp "$INCLUDE_FILE" package-samp/cef.inc
+          cp "$INCLUDE_FILE" package-omp-x86/cef.inc
+          cp "$INCLUDE_FILE" package-omp-x64/cef.inc
 
-          find temp-assets/server-ServerOmp-x64-Windows -name "*.dll" -exec mv {} package-omp-x64/components/Cef.dll \; || true
-          find temp-assets/server-ServerOmp-x64-Linux  -name "*.so"  -exec mv {} package-omp-x64/components/Cef.so  \; || true
-          
+          copy_required_file "temp-assets/server-ServerSamp-x86-Windows/cef.dll" \
+            "package-samp/plugins/cef.dll" \
+            "SA-MP Windows x86 plugin"
+
+          copy_required_file "temp-assets/server-ServerSamp-x86-Linux/cef.so" \
+            "package-samp/plugins/cef.so" \
+            "SA-MP Linux x86 plugin"
+
+          copy_required_file "temp-assets/server-ServerOmp-x86-Windows/Cef.dll" \
+            "package-omp-x86/components/Cef.dll" \
+            "open.mp Windows x86 component"
+
+          copy_required_file "temp-assets/server-ServerOmp-x86-Linux/Cef.so" \
+            "package-omp-x86/components/Cef.so" \
+            "open.mp Linux x86 component"
+
+          copy_required_file "temp-assets/server-ServerOmp-x64-Windows/Cef.dll" \
+            "package-omp-x64/components/Cef.dll" \
+            "open.mp Windows x64 component"
+
+          copy_required_file "temp-assets/server-ServerOmp-x64-Linux/Cef.so" \
+            "package-omp-x64/components/Cef.so" \
+            "open.mp Linux x64 component"
+
+          echo "Validating packaged server binaries..."
+          assert_pe_machine "package-samp/plugins/cef.dll" "x86"
+          assert_pe_machine "package-omp-x86/components/Cef.dll" "x86"
+          assert_pe_machine "package-omp-x64/components/Cef.dll" "x64"
+          assert_elf_class "package-samp/plugins/cef.so" "ELF32"
+          assert_elf_class "package-omp-x86/components/Cef.so" "ELF32"
+          assert_elf_class "package-omp-x64/components/Cef.so" "ELF64"
+
           echo "Creating server archives..."
           (cd package-samp && zip -r ../release-assets/cef-samp-v${{ inputs.version }}.zip .)
           (cd package-omp-x86 && zip -r ../release-assets/cef-omp-v${{ inputs.version }}-x86.zip .)
           (cd package-omp-x64 && zip -r ../release-assets/cef-omp-v${{ inputs.version }}-x64.zip .)
+
+          echo "Validating final release archives..."
+          assert_zip_pe_machine "release-assets/cef-samp-v${{ inputs.version }}.zip" "plugins/cef.dll" "x86"
+          assert_zip_pe_machine "release-assets/cef-omp-v${{ inputs.version }}-x86.zip" "components/Cef.dll" "x86"
+          assert_zip_pe_machine "release-assets/cef-omp-v${{ inputs.version }}-x64.zip" "components/Cef.dll" "x64"
 
       - name: Generate New Changelog Section
         uses: orhun/git-cliff-action@v4
@@ -106,7 +225,7 @@ jobs:
           if ! git diff --quiet CHANGELOG.md; then
             git add CHANGELOG.md
             git commit -m "chore: update CHANGELOG for v${{ inputs.version }}"
-            git push origin HEAD
+            git push origin HEAD:${{ github.ref_name }}
           fi
       
       - name: Create GitHub Release and Upload Assets
