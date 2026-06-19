@@ -3,7 +3,6 @@
 components/*
 models/*
 qawno/*
-scriptfiles/cef/*
 log.txt
 omp-server.exe
 .vscode

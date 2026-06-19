@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>World2D Browser</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="badge-page">
+  <div class="world-badge">
+    <h1>World2D</h1>
+    <p>Projected from a 3D world position to screen space.</p>
+    <div class="stats">
+      <div class="stat"><span>RAF</span><strong id="fps">0</strong></div>
+      <div class="stat"><span>Frame</span><strong id="frame">0</strong></div>
+    </div>
+    <div class="actions" style="justify-content:center">
+      <button data-cef-button="world2d-click">JS event</button>
+    </div>
+  </div>
+  <div id="box" class="moving-box" style="top: calc(100% - 58px); width: 58px; height: 58px;"></div>
+  <script src="js/cef-bridge.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

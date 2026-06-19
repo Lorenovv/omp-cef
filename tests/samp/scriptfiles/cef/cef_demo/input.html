@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Input Focus</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="demo-shell">
+    <section class="panel">
+      <h1 class="title">Input and focus</h1>
+      <p class="subtitle">Create this page with focus enabled, then type in the input. JS can emit the value to Pawn.</p>
+      <input id="demo-input" placeholder="Type here..." value="Hello from CEF">
+      <div class="actions">
+        <button id="send-input">Send input to Pawn</button>
+        <button data-cef-button="input-button" class="secondary">Button event</button>
+      </div>
+      <p id="notify" class="subtitle">Waiting...</p>
+      <div id="log" class="log"></div>
+    </section>
+    <section class="stage">
+      <div id="box" class="moving-box"></div>
+      <div class="progress"><div id="bar-fill"></div></div>
+    </section>
+  </div>
+  <script src="js/cef-bridge.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

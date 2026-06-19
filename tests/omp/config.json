@@ -25,8 +25,8 @@
     "gravity": 0.008,
     "group_player_objects": false,
     "lag_compensation_mode": 1,
-    "map": "",
-    "mode": "",
+    "map": "San Andreas",
+    "mode": "omp-cef",
     "nametag_draw_radius": 70.0,
     "player_marker_draw_radius": 250.0,
     "player_marker_mode": 1,
@@ -64,7 +64,7 @@
   },
   "max_bots": 0,
   "max_players": 50,
-  "name": "omp-cef - example",
+  "name": "omp-cef - demo gamemode",
   "network": {
     "acks_limit": 3000,
     "aiming_sync_rate": 30,
@@ -89,24 +89,25 @@
     "stream_rate": 1000,
     "time_sync_rate": 30000,
     "use_lan_mode": false,
-    "use_omp_encryption": false
+    "use_omp_encryption": true
   },
   "password": "",
   "pawn": {
     "legacy_plugins": [],
-    "main_scripts": ["cef 1"],
+    "main_scripts": ["cef_demo 1"],
     "side_scripts": []
   },
   "rcon": {
     "allow_teleport": false,
-    "enable": false,
-    "password": "123456"
+    "enable": true,
+    "password": "ompcef"
   },
   "sleep": 5.0,
   "use_dyn_ticks": true,
-  "website": "open.mp",
+  "website": "https://github.com/aurora-mp/omp-cef",
   "cef": {
     "debug": true,
-    "master_resource_key": "1234567897452369"
+    "master_resource_key": "OmpCefByNeekoGta",
+    "resources_loader_mode": "samp_dialog"
   }
 }
