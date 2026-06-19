@@ -76,10 +76,6 @@ Short version:
 
 ## Samples
 
-Official samples are planned for the upcoming **v1.3.0** release.
-
-They will cover:
-
 - Overlay2D HUD
 - World2D browser
 - WorldObject3D browser
