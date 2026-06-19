@@ -51,6 +51,7 @@ jobs:
 
           cmake -B build -S . \
             -DCMAKE_BUILD_TYPE=${{ inputs.build-type }} -A Win32 \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_TOOLCHAIN_FILE" \
             -DVCPKG_FEATURE_FLAGS=manifests\;binarycaching \
             -DVCPKG_MANIFEST_FEATURES=client \

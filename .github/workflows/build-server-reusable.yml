@@ -101,6 +101,7 @@ jobs:
 
           cmake -B build -S . \
             -DCMAKE_BUILD_TYPE=${{ inputs.build-type }} \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_TOOLCHAIN_FILE" \
             -DVCPKG_TARGET_TRIPLET="${{ steps.vars.outputs.triplet }}" \
             -DVCPKG_FEATURE_FLAGS=manifests\;binarycaching \
@@ -275,6 +276,7 @@ jobs:
 
           cmake -B build -S . \
             -DCMAKE_BUILD_TYPE=${{ inputs.build-type }} \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_TOOLCHAIN_FILE" \
             -DVCPKG_TARGET_TRIPLET="${{ steps.vars.outputs.triplet }}" \
             -DVCPKG_FEATURE_FLAGS=manifests\;binarycaching \
