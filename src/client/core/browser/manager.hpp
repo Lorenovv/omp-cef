@@ -150,6 +150,7 @@ public:
 
     void SetPlayerStatsPolling(int browserId, bool enabled, int intervalMs);
     void TickGameData();
+    void OnGameFocusGained();
     void OnGameFocusLost();
 
     void ExitGame();
@@ -212,6 +213,8 @@ private:
 
     CEntity* GetEntityFromObjectId(int objectId);
     void ClearPendingPaint(int id);
+    void RestoreBrowserTextures();
+    void RequestVisibleBrowsersRepaint();
     void SendExternalBeginFrames();
     void DispatchExternalBeginFramesOnUi();
 

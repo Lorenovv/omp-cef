@@ -267,6 +267,9 @@ void Runtime::FinalizeInitialization(HWND hwnd)
                     if (focus_)
                         focus_->RequestResync();
 
+                    if (browser_)
+                        browser_->OnGameFocusGained();
+
                     cursor_recenter_frames_.store(5, std::memory_order_release);
                 }
                 else

@@ -58,6 +58,95 @@ static uint32_t GetCefEventFlags()
 
 namespace
 {
+    static bool EnsureDirectory(const std::filesystem::path& path, const char* label)
+    {
+        std::error_code error_code;
+        std::filesystem::create_directories(path, error_code);
+
+        if (error_code)
+        {
+            LOG_FATAL("[CEF] Cannot create {} directory '{}': {}", label, path.string().c_str(), error_code.message().c_str());
+            return false;
+        }
+
+        if (!std::filesystem::is_directory(path))
+        {
+            LOG_FATAL("[CEF] {} directory does not exist: {}", label, path.string().c_str());
+            return false;
+        }
+
+        return true;
+    }
+
+    static bool RequireFile(const std::filesystem::path& path, const char* label)
+    {
+        std::error_code error_code;
+        const bool exists = std::filesystem::is_regular_file(path, error_code);
+
+        if (error_code || !exists)
+        {
+            if (error_code)
+                LOG_FATAL("[CEF] Cannot access required {} '{}': {}", label, path.string().c_str(), error_code.message().c_str());
+            else
+                LOG_FATAL("[CEF] Missing required {}: {}", label, path.string().c_str());
+
+            return false;
+        }
+
+        LOG_DEBUG("[CEF] {}: {}", label, path.string().c_str());
+        return true;
+    }
+
+    static bool RequireDirectory(const std::filesystem::path& path, const char* label)
+    {
+        std::error_code error_code;
+        const bool exists = std::filesystem::is_directory(path, error_code);
+
+        if (error_code || !exists)
+        {
+            if (error_code)
+                LOG_FATAL("[CEF] Cannot access required {} directory '{}': {}", label, path.string().c_str(), error_code.message().c_str());
+            else
+                LOG_FATAL("[CEF] Missing required {} directory: {}", label, path.string().c_str());
+
+            return false;
+        }
+
+        LOG_DEBUG("[CEF] {} directory: {}", label, path.string().c_str());
+        return true;
+    }
+
+    static void LogOptionalFile(const std::filesystem::path& path, const char* label)
+    {
+        std::error_code error_code;
+        const bool exists = std::filesystem::is_regular_file(path, error_code);
+
+        if (exists)
+            LOG_DEBUG("[CEF] {}: {}", label, path.string().c_str());
+        else if (error_code)
+            LOG_WARN("[CEF] Cannot access optional {} '{}': {}", label, path.string().c_str(), error_code.message().c_str());
+        else
+            LOG_WARN("[CEF] Optional {} not found: {}", label, path.string().c_str());
+    }
+
+    static bool ValidateCefRuntime(const std::filesystem::path& cef_dir)
+    {
+        bool valid = true;
+
+        valid &= RequireDirectory(cef_dir, "runtime");
+        valid &= RequireFile(cef_dir / "renderer.exe", "renderer subprocess");
+        valid &= RequireFile(cef_dir / "libcef.dll", "libcef.dll");
+        valid &= RequireFile(cef_dir / "icudtl.dat", "ICU data file");
+        valid &= RequireFile(cef_dir / "resources.pak", "resources.pak");
+        valid &= RequireDirectory(cef_dir / "locales", "locales");
+
+        LogOptionalFile(cef_dir / "chrome_100_percent.pak", "chrome_100_percent.pak");
+        LogOptionalFile(cef_dir / "chrome_200_percent.pak", "chrome_200_percent.pak");
+        LogOptionalFile(cef_dir / "v8_context_snapshot.bin", "v8_context_snapshot.bin");
+
+        return valid;
+    }
+
     class DevToolsClient final : public CefClient, public CefLifeSpanHandler
     {
     public:
@@ -132,14 +221,17 @@ bool BrowserManager::Initialize()
     wchar_t exe_path[MAX_PATH]{};
     GetModuleFileNameW(nullptr, exe_path, MAX_PATH);
 
-    auto base = std::filesystem::path(exe_path).parent_path();
-    auto cef_dir = base / "cef";
+    const auto base = std::filesystem::path(exe_path).parent_path();
+    const auto cef_dir = base / "cef";
+    const auto cef_subprocess = cef_dir / "renderer.exe";
+    const auto cef_resources_dir = cef_dir;
+    const auto cef_locales_dir = cef_dir / "locales";
 
     // Use GTA user files (writable) for ALL CEF internal data.
     // Keep game folder 'cef/' for binaries/resources, not for cache/profile.
-    auto user_files = std::filesystem::path(gta_.GetUserFilesPath());
-    auto user_cef_root = user_files / "cef";
-    auto user_cef_ui_cache = user_cef_root / "cache";
+    const auto user_files = std::filesystem::path(gta_.GetUserFilesPath());
+    const auto user_cef_root = user_files / "cef";
+    const auto user_cef_ui_cache = user_cef_root / "cache";
 
     // CEF internal cache/profile
     const auto user_cache_dir = user_cef_root / "cef_cache";
@@ -147,26 +239,35 @@ bool BrowserManager::Initialize()
     // CEF debug log
     const auto cef_log_file = user_cef_root / "debug.log";
 
-    std::error_code error_code;
-    std::filesystem::create_directories(user_cef_ui_cache, error_code);
-    std::filesystem::create_directories(user_cache_dir, error_code);
-
+    LOG_DEBUG("[CEF] Game executable: {}", std::filesystem::path(exe_path).string().c_str());
+    LOG_DEBUG("[CEF] Game directory: {}", base.string().c_str());
+    LOG_DEBUG("[CEF] Runtime directory: {}", cef_dir.string().c_str());
+    LOG_DEBUG("[CEF] Resources directory: {}", cef_resources_dir.string().c_str());
+    LOG_DEBUG("[CEF] Locales directory: {}", cef_locales_dir.string().c_str());
+    LOG_DEBUG("[CEF] Renderer subprocess: {}", cef_subprocess.string().c_str());
     LOG_DEBUG("[CEF] UserFiles: {}", user_files.string().c_str());
     LOG_DEBUG("[CEF] UI cache: {}", user_cef_ui_cache.string().c_str());
     LOG_DEBUG("[CEF] CEF cache: {}", user_cache_dir.string().c_str());
     LOG_DEBUG("[CEF] CEF log: {}", cef_log_file.string().c_str());
 
-    // If we still can't create dirs, fail init cleanly
-    if (!std::filesystem::exists(user_cache_dir))
+    if (!ValidateCefRuntime(cef_dir))
     {
-        LOG_FATAL("[CEF] Cannot create CEF cache dir: {}", user_cache_dir.string().c_str());
+        LOG_FATAL("[CEF] Runtime validation failed. Reinstall the full omp-cef client package. Do not mix CEF files from different versions.");
         return false;
     }
+
+    if (!EnsureDirectory(user_cef_ui_cache, "UI cache"))
+        return false;
+
+    if (!EnsureDirectory(user_cache_dir, "CEF cache"))
+        return false;
 
     CefString(&settings.log_file) = cef_log_file.wstring();
     CefString(&settings.root_cache_path) = user_cache_dir.wstring();
     CefString(&settings.cache_path) = user_cache_dir.wstring();
-    CefString(&settings.browser_subprocess_path) = (cef_dir / "renderer.exe").wstring();
+    CefString(&settings.browser_subprocess_path) = cef_subprocess.wstring();
+    CefString(&settings.resources_dir_path) = cef_resources_dir.wstring();
+    CefString(&settings.locales_dir_path) = cef_locales_dir.wstring();
 
     settings.no_sandbox = true;
     settings.log_severity = LOGSEVERITY_INFO;
@@ -183,7 +284,13 @@ bool BrowserManager::Initialize()
 
     if (!CefInitialize(main_args, settings, app.get(), nullptr))
     {
-        LOG_FATAL("[CEF] Initialization failed !");
+        LOG_FATAL("[CEF] CefInitialize returned false.");
+        LOG_FATAL("[CEF] Runtime directory: {}", cef_dir.string().c_str());
+        LOG_FATAL("[CEF] Resources directory: {}", cef_resources_dir.string().c_str());
+        LOG_FATAL("[CEF] Locales directory: {}", cef_locales_dir.string().c_str());
+        LOG_FATAL("[CEF] Renderer subprocess: {}", cef_subprocess.string().c_str());
+        LOG_FATAL("[CEF] Cache directory: {}", user_cache_dir.string().c_str());
+        LOG_FATAL("[CEF] Delete the CEF cache and reinstall the full matching client package if this persists.");
         return false;
     }
 
@@ -1036,6 +1143,69 @@ void BrowserManager::ClearPendingPaint(int id)
     pending_paint.tick = 0;
 }
 
+void BrowserManager::RestoreBrowserTextures()
+{
+    for (auto& [id, instance] : browsers_)
+    {
+        if (!instance || !instance->visible)
+            continue;
+
+        auto it = pending_.find(id);
+        if (it == pending_.end())
+            continue;
+
+        auto& pending_paint = it->second;
+        std::lock_guard<std::mutex> lock(pending_paint.mutex);
+
+        if (pending_paint.pixels.empty() || pending_paint.width <= 0 || pending_paint.height <= 0)
+            continue;
+
+        if (instance->mode == RenderMode::WorldObject3D)
+        {
+            auto world_renderer = worldRenderers_.find(id);
+            if (world_renderer != worldRenderers_.end() && world_renderer->second)
+            {
+                world_renderer->second->OnPaint(
+                    pending_paint.pixels.data(),
+                    pending_paint.width,
+                    pending_paint.height
+                );
+            }
+        }
+        else
+        {
+            instance->view.OnPaint(pending_paint.pixels.data(), pending_paint.width, pending_paint.height);
+        }
+
+        pending_paint.ready = false;
+        pending_paint.dirty_rects.clear();
+    }
+}
+
+void BrowserManager::RequestVisibleBrowsersRepaint()
+{
+    if (!CefCurrentlyOn(TID_UI))
+    {
+        CefPostTask(TID_UI, base::BindOnce(&BrowserManager::RequestVisibleBrowsersRepaint, base::Unretained(this)));
+        return;
+    }
+
+    for (auto& [id, instance] : browsers_)
+    {
+        if (!instance || !instance->visible || !instance->browser || !instance->browser->IsValid())
+            continue;
+
+        auto host = instance->browser->GetHost();
+        if (!host)
+            continue;
+
+        host->WasHidden(false);
+        host->WasResized();
+        host->Invalidate(PET_VIEW);
+        host->SendExternalBeginFrame();
+    }
+}
+
 void BrowserManager::RequestTextureClear(int id)
 {
     if (auto* instance = GetBrowserInstance(id))
@@ -1445,6 +1615,12 @@ void BrowserManager::EnableKey(int key, bool enabled)
     LOG_INFO("[CEF] Key {} {}", key, enabled ? "enabled" : "disabled");
 }
 
+void BrowserManager::OnGameFocusGained()
+{
+    RestoreBrowserTextures();
+    RequestVisibleBrowsersRepaint();
+}
+
 void BrowserManager::OnGameFocusLost()
 {
     if (!CefCurrentlyOn(TID_UI))
@@ -1666,8 +1842,12 @@ void BrowserManager::OnDeviceReset(IDirect3DDevice9* device)
         }
     }
     
-    // Resume CEF updates
+    // Resume CEF updates and restore the last known browser pixels immediately.
+    // Static pages may not produce another OnPaint after Alt+Tab/device reset,
+    // especially when another client plugin changes the D3D reset timing (like Samp Addons).
     isCefUpdatesPaused_ = false;
+    RestoreBrowserTextures();
+    RequestVisibleBrowsersRepaint();
 }
 
 LRESULT BrowserManager::OnWndProcMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
