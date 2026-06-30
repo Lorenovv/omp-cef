@@ -14,13 +14,13 @@ public:
         command_line->AppendSwitchWithValue("allow-browser-signin", "false");
         command_line->AppendSwitch("enable-begin-frame-scheduling");
 
-        // alt+tab fix WITHOUT sacrificing GPU acceleration:
-        // run the GPU inside the browser process so there is no separate GPU
-        // child process that dies permanently on DirectX9 device loss. Chromium
-        // recovers the GPU context in-process; RestoreBrowserTextures() handles
-        // the DX9 surface. The watchdog is disabled so it cannot kill the GPU
-        // thread while alt+tab briefly stalls it.
-        command_line->AppendSwitch("in-process-gpu");
+        // alt+tab fix while keeping full GPU acceleration:
+        // the GPU watchdog kills the GPU process when its thread briefly stalls
+        // during the exclusive-fullscreen -> minimized transition on alt+tab,
+        // which permanently took CEF down. Disabling the watchdog lets the GPU
+        // process survive the stall and resume; RestoreBrowserTextures() on
+        // focus regain recovers the DX9 surface. The GPU stays out-of-process
+        // (in-process-gpu crashes this multi-threaded windowless setup).
         command_line->AppendSwitch("disable-gpu-watchdog");
     }
 
