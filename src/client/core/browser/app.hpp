@@ -13,6 +13,12 @@ public:
         command_line->AppendSwitchWithValue("autoplay-policy", "no-user-gesture-required");
         command_line->AppendSwitchWithValue("allow-browser-signin", "false");
         command_line->AppendSwitch("enable-begin-frame-scheduling");
+
+        // alt+tab fix: force Chromium software compositing so there is no GPU
+        // process that can die on DirectX9 device loss. OnPaint keeps
+        // delivering frames and RestoreBrowserTextures() recovers the surface.
+        command_line->AppendSwitch("disable-gpu");
+        command_line->AppendSwitch("disable-gpu-compositing");
     }
 
 private:
