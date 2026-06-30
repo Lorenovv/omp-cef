@@ -45,10 +45,17 @@ void FocusManager::Update()
         {
             while (::ShowCursor(TRUE) < 0) {}
         }
+
+        cursor_shown_ = true;
     }
     else 
     {
-        if (left_cef_focus || force_resync) 
+        // Hide on the focus-loss edge, on an explicit resync, or whenever we
+        // still have the cursor shown latched. The latch covers the case where
+        // the focused browser is destroyed the same frame focus is released
+        // (e.g. AUTH browser on login), which otherwise misses left_cef_focus
+        // and leaves the cursor stuck in screen center.
+        if (left_cef_focus || force_resync || cursor_shown_)
         {
             CursorHook::Instance().SetForced(false);
 
@@ -57,6 +64,8 @@ void FocusManager::Update()
 
             game->SetCursorMode(CMODE_NONE, TRUE);
             game->ProcessInputEnabling();
+
+            cursor_shown_ = false;
         }
     }
 
