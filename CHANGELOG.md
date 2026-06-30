@@ -1,4 +1,14 @@
 
+## [1.0.6](https://github.com/aurora-mp/omp-cef/compare/v1.0.5..v1.0.6) (2026-06-30)
+
+### 🐛 Bug Fixes
+
+- *(focus)* Only correct stray cursor after a CEF focus session (fix startup crash in samp.dll) - ([1e94ca2](https://github.com/aurora-mp/omp-cef/commit/1e94ca2505504d4bc5368da1a0d830e37d38e227))
+- *(focus)* Gate stray-cursor correction behind first CEF focus session - ([6048073](https://github.com/aurora-mp/omp-cef/commit/60480731df0dde4e0c3e73cb2c1f52addd9ac97a))
+
+
+
+
 ## [1.0.5](https://github.com/aurora-mp/omp-cef/compare/v1.0.4..v1.0.5) (2026-06-30)
 
 ### 🐛 Bug Fixes
