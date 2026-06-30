@@ -1,4 +1,24 @@
 
+## [1.0.4](https://github.com/aurora-mp/omp-cef/compare/v1.0.3..v1.0.4) (2026-06-30)
+
+### 🐛 Bug Fixes
+
+- *(client)* Always hide cursor when CEF focus is lost - ([1d9f385](https://github.com/aurora-mp/omp-cef/commit/1d9f385fc12f489d4686353febc3dc1036e65088))
+- *(client)* Always hide cursor when CEF focus is lost - ([1d9f385](https://github.com/aurora-mp/omp-cef/commit/1d9f385fc12f489d4686353febc3dc1036e65088))
+- *(client)* Always hide cursor when CEF focus is lost - ([1d9f385](https://github.com/aurora-mp/omp-cef/commit/1d9f385fc12f489d4686353febc3dc1036e65088))
+- *(client)* Always hide cursor when CEF focus is lost - ([1d9f385](https://github.com/aurora-mp/omp-cef/commit/1d9f385fc12f489d4686353febc3dc1036e65088))
+- *(client)* Always hide cursor when CEF focus is lost - ([1d9f385](https://github.com/aurora-mp/omp-cef/commit/1d9f385fc12f489d4686353febc3dc1036e65088))
+- *(client)* Always hide cursor when CEF focus is lost - ([1d9f385](https://github.com/aurora-mp/omp-cef/commit/1d9f385fc12f489d4686353febc3dc1036e65088))
+- *(client)* Always hide cursor when CEF focus is lost - ([1d9f385](https://github.com/aurora-mp/omp-cef/commit/1d9f385fc12f489d4686353febc3dc1036e65088))
+- *(client)* Always hide cursor when CEF focus is lost - ([e8fd628](https://github.com/aurora-mp/omp-cef/commit/e8fd6286f3ab516da286514c86d0bb01e01129bc))
+- *(client)* Always hide cursor when CEF focus is lost - ([e8fd628](https://github.com/aurora-mp/omp-cef/commit/e8fd6286f3ab516da286514c86d0bb01e01129bc))
+- *(client)* Always hide cursor when CEF focus is lost - ([e8fd628](https://github.com/aurora-mp/omp-cef/commit/e8fd6286f3ab516da286514c86d0bb01e01129bc))
+- *(client)* Always hide cursor when CEF focus is lost - ([e8fd628](https://github.com/aurora-mp/omp-cef/commit/e8fd6286f3ab516da286514c86d0bb01e01129bc))
+- *(client)* Always hide cursor when CEF focus is lost - ([e8fd628](https://github.com/aurora-mp/omp-cef/commit/e8fd6286f3ab516da286514c86d0bb01e01129bc))
+
+
+
+
 ## [1.0.3](https://github.com/aurora-mp/omp-cef/compare/v1.0.2..v1.0.3) (2026-06-30)
 
 ### ✨ Features
