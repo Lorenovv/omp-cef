@@ -1,4 +1,40 @@
 
+## [1.0.3](https://github.com/aurora-mp/omp-cef/compare/v1.0.2..v1.0.3) (2026-06-30)
+
+### ✨ Features
+
+- *(client)* Pump browser repaint for a few seconds after alt+tab - ([bb329d8](https://github.com/aurora-mp/omp-cef/commit/bb329d812c4a370d87ca65f0d5e33a3c61527ca9))
+- *(client)* Pump browser repaint for a few seconds after alt+tab - ([bb329d8](https://github.com/aurora-mp/omp-cef/commit/bb329d812c4a370d87ca65f0d5e33a3c61527ca9))
+- *(client)* Pump browser repaint for a few seconds after alt+tab - ([bb329d8](https://github.com/aurora-mp/omp-cef/commit/bb329d812c4a370d87ca65f0d5e33a3c61527ca9))
+- *(client)* Pump browser repaint for a few seconds after alt+tab - ([bb329d8](https://github.com/aurora-mp/omp-cef/commit/bb329d812c4a370d87ca65f0d5e33a3c61527ca9))
+- *(client)* Pump browser repaint for a few seconds after alt+tab - ([bb329d8](https://github.com/aurora-mp/omp-cef/commit/bb329d812c4a370d87ca65f0d5e33a3c61527ca9))
+- *(client)* Pump browser repaint for a few seconds after alt+tab - ([bb329d8](https://github.com/aurora-mp/omp-cef/commit/bb329d812c4a370d87ca65f0d5e33a3c61527ca9))
+- *(client)* Add post-alt+tab paint recovery window state - ([274d210](https://github.com/aurora-mp/omp-cef/commit/274d210465564ae6c736cc114d6e46b64f5008b5))
+- *(client)* Add post-alt+tab paint recovery window state - ([274d210](https://github.com/aurora-mp/omp-cef/commit/274d210465564ae6c736cc114d6e46b64f5008b5))
+- *(client)* Add post-alt+tab paint recovery window state - ([274d210](https://github.com/aurora-mp/omp-cef/commit/274d210465564ae6c736cc114d6e46b64f5008b5))
+- *(client)* Add post-alt+tab paint recovery window state - ([274d210](https://github.com/aurora-mp/omp-cef/commit/274d210465564ae6c736cc114d6e46b64f5008b5))
+
+### 🐛 Bug Fixes
+
+- *(client)* Keep CEF renderer/GPU alive across long alt+tab - ([9a24778](https://github.com/aurora-mp/omp-cef/commit/9a24778c4ba57e32818b9601253a232e344a0777))
+- *(client)* Keep CEF renderer/GPU alive across long alt+tab - ([9a24778](https://github.com/aurora-mp/omp-cef/commit/9a24778c4ba57e32818b9601253a232e344a0777))
+- *(client)* Keep CEF renderer/GPU alive across long alt+tab - ([9a24778](https://github.com/aurora-mp/omp-cef/commit/9a24778c4ba57e32818b9601253a232e344a0777))
+- *(client)* Keep CEF renderer/GPU alive across long alt+tab - ([9a24778](https://github.com/aurora-mp/omp-cef/commit/9a24778c4ba57e32818b9601253a232e344a0777))
+- *(client)* Keep CEF renderer/GPU alive across long alt+tab - ([9a24778](https://github.com/aurora-mp/omp-cef/commit/9a24778c4ba57e32818b9601253a232e344a0777))
+- *(client)* Keep CEF renderer/GPU alive across long alt+tab - ([9a24778](https://github.com/aurora-mp/omp-cef/commit/9a24778c4ba57e32818b9601253a232e344a0777))
+- *(client)* Keep CEF renderer/GPU alive across long alt+tab - ([9a24778](https://github.com/aurora-mp/omp-cef/commit/9a24778c4ba57e32818b9601253a232e344a0777))
+- *(client)* Keep CEF renderer/GPU alive across long alt+tab - ([9a24778](https://github.com/aurora-mp/omp-cef/commit/9a24778c4ba57e32818b9601253a232e344a0777))
+
+### Revert
+
+- *(client)* Drop recovery members from manager.hpp - ([da11d4a](https://github.com/aurora-mp/omp-cef/commit/da11d4ae812ea69081b1830a7ca64c9b29f2d4a4))
+- *(client)* Drop recovery members from manager.hpp - ([da11d4a](https://github.com/aurora-mp/omp-cef/commit/da11d4ae812ea69081b1830a7ca64c9b29f2d4a4))
+- *(client)* Drop recovery members from manager.hpp - ([da11d4a](https://github.com/aurora-mp/omp-cef/commit/da11d4ae812ea69081b1830a7ca64c9b29f2d4a4))
+- *(client)* Drop recovery members from manager.hpp - ([da11d4a](https://github.com/aurora-mp/omp-cef/commit/da11d4ae812ea69081b1830a7ca64c9b29f2d4a4))
+
+
+
+
 ## [1.0.2](https://github.com/aurora-mp/omp-cef/compare/v1.0.1..v1.0.2) (2026-06-30)
 
 ### 🐛 Bug Fixes
