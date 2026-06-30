@@ -36,9 +36,16 @@ private:
 
     // Latches true while we are forcing/showing the CEF cursor. Lets us always
     // hide the cursor again once focus leaves CEF, even if the focus-loss edge
-    // was missed (e.g. the focused browser is destroyed the same frame focus is
-    // released on auth completion) - otherwise the cursor stays stuck onscreen.
+    // was missed (e.g. the focused AUTH browser is destroyed on the same frame
+    // focus is released on auth completion) - otherwise the cursor stays stuck.
     bool cursor_shown_ = false;
+
+    // Set true once any CEF browser has been focused. Gates the per-frame stray
+    // cursor correction in Update() so it never calls into SA-MP game functions
+    // before the first focus (GTA/SA-MP menu, loading screen, server browser),
+    // where those calls dereference uninitialized samp.dll state and crash at
+    // startup. By the post-login spawn (the case we correct) SA-MP is up.
+    bool had_cef_focus_session_ = false;
 
     // Browser ID currently holding input focus (-1 = none)
     std::atomic<int> input_focused_browser_id_{ -1 };
