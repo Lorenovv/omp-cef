@@ -1,4 +1,14 @@
 
+## [1.0.7](https://github.com/aurora-mp/omp-cef/compare/v1.0.6..v1.0.7) (2026-06-30)
+
+### 🐛 Bug Fixes
+
+- *(focus)* Correct stray cursor only briefly after focus loss; leave TAB/chat cursors alone - ([7e8aa0e](https://github.com/aurora-mp/omp-cef/commit/7e8aa0e18dc82c79f2a06a6bec457cf91b324002))
+- *(focus)* Limit stray-cursor correction to a short post-focus-loss window - ([ca3fd5f](https://github.com/aurora-mp/omp-cef/commit/ca3fd5f76a2fbfb312495f21296158ee10765937))
+
+
+
+
 ## [1.0.6](https://github.com/aurora-mp/omp-cef/compare/v1.0.5..v1.0.6) (2026-06-30)
 
 ### 🐛 Bug Fixes
