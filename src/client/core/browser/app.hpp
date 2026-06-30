@@ -14,11 +14,14 @@ public:
         command_line->AppendSwitchWithValue("allow-browser-signin", "false");
         command_line->AppendSwitch("enable-begin-frame-scheduling");
 
-        // alt+tab fix: force Chromium software compositing so there is no GPU
-        // process that can die on DirectX9 device loss. OnPaint keeps
-        // delivering frames and RestoreBrowserTextures() recovers the surface.
-        command_line->AppendSwitch("disable-gpu");
-        command_line->AppendSwitch("disable-gpu-compositing");
+        // alt+tab fix WITHOUT sacrificing GPU acceleration:
+        // run the GPU inside the browser process so there is no separate GPU
+        // child process that dies permanently on DirectX9 device loss. Chromium
+        // recovers the GPU context in-process; RestoreBrowserTextures() handles
+        // the DX9 surface. The watchdog is disabled so it cannot kill the GPU
+        // thread while alt+tab briefly stalls it.
+        command_line->AppendSwitch("in-process-gpu");
+        command_line->AppendSwitch("disable-gpu-watchdog");
     }
 
 private:
