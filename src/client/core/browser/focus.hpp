@@ -34,6 +34,12 @@ private:
     // Focus state to prevent redundant ShowCursor/HideCursor calls
     bool was_cef_focused_last_frame_ = false;
 
+    // Latches true while we are forcing/showing the CEF cursor. Lets us always
+    // hide the cursor again once focus leaves CEF, even if the focus-loss edge
+    // was missed (e.g. the focused browser is destroyed the same frame focus is
+    // released on auth completion) - otherwise the cursor stays stuck onscreen.
+    bool cursor_shown_ = false;
+
     // Browser ID currently holding input focus (-1 = none)
     std::atomic<int> input_focused_browser_id_{ -1 };
 
