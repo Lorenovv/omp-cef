@@ -1,4 +1,21 @@
 
+## [1.0.2](https://github.com/aurora-mp/omp-cef/compare/v1.0.1..v1.0.2) (2026-06-30)
+
+### 🐛 Bug Fixes
+
+- *(client)* Drop in-process-gpu (crashes), keep GPU + disable-gpu-watchdog - ([d6f596c](https://github.com/aurora-mp/omp-cef/commit/d6f596c06d92963bbb2b9d72cfc9825d1e66488e))
+- *(client)* Drop in-process-gpu (crashes), keep GPU + disable-gpu-watchdog - ([d6f596c](https://github.com/aurora-mp/omp-cef/commit/d6f596c06d92963bbb2b9d72cfc9825d1e66488e))
+- *(client)* Drop in-process-gpu (crashes), keep GPU + disable-gpu-watchdog - ([d6f596c](https://github.com/aurora-mp/omp-cef/commit/d6f596c06d92963bbb2b9d72cfc9825d1e66488e))
+- *(client)* Drop in-process-gpu (crashes), keep GPU + disable-gpu-watchdog - ([d6f596c](https://github.com/aurora-mp/omp-cef/commit/d6f596c06d92963bbb2b9d72cfc9825d1e66488e))
+- *(client)* Drop in-process-gpu (crashes), keep GPU + disable-gpu-watchdog - ([d6f596c](https://github.com/aurora-mp/omp-cef/commit/d6f596c06d92963bbb2b9d72cfc9825d1e66488e))
+- *(client)* Drop in-process-gpu (crashes), keep GPU + disable-gpu-watchdog - ([d6f596c](https://github.com/aurora-mp/omp-cef/commit/d6f596c06d92963bbb2b9d72cfc9825d1e66488e))
+- *(client)* Drop in-process-gpu (crashes), keep GPU + disable-gpu-watchdog - ([d6f596c](https://github.com/aurora-mp/omp-cef/commit/d6f596c06d92963bbb2b9d72cfc9825d1e66488e))
+- *(client)* Drop in-process-gpu (crashes), keep GPU + disable-gpu-watchdog - ([d6f596c](https://github.com/aurora-mp/omp-cef/commit/d6f596c06d92963bbb2b9d72cfc9825d1e66488e))
+- *(client)* Drop in-process-gpu (crashes), keep GPU + disable-gpu-watchdog - ([d6f596c](https://github.com/aurora-mp/omp-cef/commit/d6f596c06d92963bbb2b9d72cfc9825d1e66488e))
+
+
+
+
 ## [1.0.1](https://github.com/aurora-mp/omp-cef/compare/v1.0.0..v1.0.1) (2026-06-30)
 
 ### 🐛 Bug Fixes
