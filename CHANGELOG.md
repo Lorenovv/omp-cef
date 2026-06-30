@@ -1,4 +1,20 @@
 
+## [1.0.1](https://github.com/aurora-mp/omp-cef/compare/v1.0.0..v1.0.1) (2026-06-30)
+
+### 🐛 Bug Fixes
+
+- *(client)* Keep GPU accel but run it in-process to survive alt+tab - ([0bad621](https://github.com/aurora-mp/omp-cef/commit/0bad62150b0cdacb7685188583f056c824a9b547))
+- *(client)* Keep GPU accel but run it in-process to survive alt+tab - ([0bad621](https://github.com/aurora-mp/omp-cef/commit/0bad62150b0cdacb7685188583f056c824a9b547))
+- *(client)* Keep GPU accel but run it in-process to survive alt+tab - ([0bad621](https://github.com/aurora-mp/omp-cef/commit/0bad62150b0cdacb7685188583f056c824a9b547))
+- *(client)* Keep GPU accel but run it in-process to survive alt+tab - ([0bad621](https://github.com/aurora-mp/omp-cef/commit/0bad62150b0cdacb7685188583f056c824a9b547))
+- *(client)* Keep GPU accel but run it in-process to survive alt+tab - ([0bad621](https://github.com/aurora-mp/omp-cef/commit/0bad62150b0cdacb7685188583f056c824a9b547))
+- *(client)* Keep GPU accel but run it in-process to survive alt+tab - ([0bad621](https://github.com/aurora-mp/omp-cef/commit/0bad62150b0cdacb7685188583f056c824a9b547))
+- *(client)* Keep GPU accel but run it in-process to survive alt+tab - ([0bad621](https://github.com/aurora-mp/omp-cef/commit/0bad62150b0cdacb7685188583f056c824a9b547))
+- *(client)* Keep GPU accel but run it in-process to survive alt+tab - ([0bad621](https://github.com/aurora-mp/omp-cef/commit/0bad62150b0cdacb7685188583f056c824a9b547))
+
+
+
+
 ## [1.0.0] (2026-06-30)
 
 ### 🧹 Chore
