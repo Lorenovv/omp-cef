@@ -1,6 +1,8 @@
-﻿#include "runtime.hpp"
+#include "runtime.hpp"
 
 #include <windows.h>
+#include <atomic>
+#include <cstdint>
 
 #include "app.hpp"
 #include "browser/audio.hpp"
@@ -25,6 +27,20 @@
 #include "system/resource_manager.hpp"
 #include "ui/hud_manager.hpp"
 #include "ui/download_dialog.hpp"
+
+namespace
+{
+    // Post-alt+tab paint recovery window. Set when the game window regains focus
+    // (WM_ACTIVATE), consumed by the per-frame OnPresent hook below. While the
+    // window is non-zero we keep nudging the browser repaint, because after a
+    // long alt+tab the GPU compositor needs a moment to resume and the single
+    // repaint fired the instant focus returns gets dropped.
+    std::atomic<uint64_t> g_focus_recovery_deadline_ms{ 0 };
+    uint64_t g_last_focus_recovery_pump_ms = 0;
+
+    constexpr uint64_t kFocusRecoveryWindowMs = 4000ULL;
+    constexpr uint64_t kFocusRecoveryPumpIntervalMs = 120ULL;
+}
 
 std::unique_ptr<Runtime> Runtime::CreateDefault()
 {
@@ -115,6 +131,28 @@ bool Runtime::Start()
             gta_->PumpMainThreadCallbacks();
 
 		UpdateBrowserDrawState();
+
+        // Post-alt+tab recovery pump (see WM_ACTIVATE handler). For a few seconds
+        // after focus returns, periodically re-run OnGameFocusGained() so the last
+        // known frame is re-uploaded and CEF is asked to repaint until its
+        // compositor resumes - prevents a black/dead UI after a long alt+tab.
+        if (browser_)
+        {
+            const uint64_t recovery_deadline = g_focus_recovery_deadline_ms.load(std::memory_order_acquire);
+            if (recovery_deadline != 0)
+            {
+                const uint64_t now = ::GetTickCount64();
+                if (now >= recovery_deadline)
+                {
+                    g_focus_recovery_deadline_ms.store(0, std::memory_order_release);
+                }
+                else if (now - g_last_focus_recovery_pump_ms >= kFocusRecoveryPumpIntervalMs)
+                {
+                    g_last_focus_recovery_pump_ms = now;
+                    browser_->OnGameFocusGained();
+                }
+            }
+        }
 
         int frames = cursor_recenter_frames_.load(std::memory_order_acquire);
         if (frames > 0)
@@ -270,10 +308,18 @@ void Runtime::FinalizeInitialization(HWND hwnd)
                     if (browser_)
                         browser_->OnGameFocusGained();
 
+                    // Open the post-alt+tab recovery window so OnPresent keeps
+                    // nudging the repaint until the GPU compositor resumes.
+                    g_last_focus_recovery_pump_ms = 0;
+                    g_focus_recovery_deadline_ms.store(
+                        ::GetTickCount64() + kFocusRecoveryWindowMs, std::memory_order_release);
+
                     cursor_recenter_frames_.store(5, std::memory_order_release);
                 }
                 else
                 {
+                    g_focus_recovery_deadline_ms.store(0, std::memory_order_release);
+
                     cursor_recenter_frames_.store(0, std::memory_order_release);
                     ::ClipCursor(nullptr);
 
