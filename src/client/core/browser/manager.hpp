@@ -245,13 +245,6 @@ private:
     std::unordered_map<int, PendingPaint> pending_;
     std::atomic<bool> begin_frame_task_pending_{false};
 
-    // Post-alt+tab paint recovery: after focus is regained we keep re-issuing
-    // repaint requests (and re-uploading the last known frame) for a short
-    // window, because a single repaint fired the instant focus returns is
-    // often lost while the GPU process / compositor is still resuming.
-    std::atomic<uint64_t> recovery_deadline_ms_{0};
-    uint64_t last_recovery_pump_ms_ = 0;
-
     // Keyboard capture / filtering (client -> server)
     bool key_capture_enabled_ = false;
     std::bitset<256> key_allowed_{};
