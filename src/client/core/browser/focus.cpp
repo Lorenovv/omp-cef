@@ -50,12 +50,29 @@ void FocusManager::Update()
     }
     else 
     {
-        // Hide on the focus-loss edge, on an explicit resync, or whenever we
-        // still have the cursor shown latched. The latch covers the case where
-        // the focused browser is destroyed the same frame focus is released
-        // (e.g. AUTH browser on login), which otherwise misses left_cef_focus
-        // and leaves the cursor stuck in screen center.
-        if (left_cef_focus || force_resync || cursor_shown_)
+        // Teardown on the focus-loss edge, on an explicit resync, or while the
+        // shown-latch is still set. The latch covers the case where the focused
+        // browser is destroyed the same frame focus is released (e.g. the AUTH
+        // browser on login), which otherwise misses left_cef_focus.
+        const bool edge_teardown = left_cef_focus || force_resync || cursor_shown_;
+
+        // GTA re-shows the OS cursor during the post-login spawn sequence
+        // (SpawnPlayer / class selection) - AFTER the edge teardown above has
+        // already run once. An edge-only hide never corrects that late re-show,
+        // leaving the arrow stuck at screen center while the camera still moves
+        // (input was correctly returned). This is why the stuck cursor only
+        // appears after authorization and not when closing other CEF screens,
+        // where no spawn transition re-shows the cursor.
+        //
+        // So every frame we have no focused browser, detect a stray visible
+        // cursor and hide it again. GetCursorInfo guards the ShowCursor refcount
+        // so we only decrement when the cursor is actually showing - otherwise
+        // the count would leak ever more negative each frame.
+        CURSORINFO ci{ sizeof(CURSORINFO) };
+        const bool cursor_visible_now =
+            ::GetCursorInfo(&ci) && (ci.flags & CURSOR_SHOWING) != 0;
+
+        if (edge_teardown || cursor_visible_now)
         {
             CursorHook::Instance().SetForced(false);
 
