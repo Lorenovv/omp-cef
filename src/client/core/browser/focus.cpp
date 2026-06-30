@@ -4,6 +4,14 @@
 #include <samp/common.hpp>
 #include <hooks/cursor_hook.hpp>
 
+namespace {
+    // How long after focus leaves CEF we keep re-hiding a stray OS cursor.
+    // Covers the post-login spawn re-show (which happens within a few frames of
+    // focus loss) while staying short enough not to fight cursors that appear
+    // later during normal gameplay (scoreboard/TAB, chat input).
+    constexpr uint64_t kSpawnCursorCorrectionMs = 1500;
+}
+
 void FocusManager::Update()
 {
     auto* game = GetComponent<GameComponent>();
@@ -55,20 +63,24 @@ void FocusManager::Update()
         // Teardown on the focus-loss edge, on an explicit resync, or while the
         // shown-latch is still set. The latch covers the focused browser being
         // destroyed the same frame focus is released (e.g. AUTH on login).
-        // This matches the known-good 1.0.4 behaviour and is safe at startup.
+        // This path is unchanged from the known-good 1.0.4 build.
         const bool edge_teardown = left_cef_focus || force_resync || cursor_shown_;
 
-        // GTA re-shows the OS cursor during the post-login spawn sequence
-        // (SpawnPlayer / class selection) AFTER the edge teardown already ran
-        // once, leaving the arrow stuck at screen center while the camera still
-        // moves. Correct that every frame - but ONLY once a real CEF focus
-        // session has happened (had_cef_focus_session_). Before the first focus
-        // (GTA/SA-MP menu, loading screen, server browser) SA-MP is not yet
-        // initialized and the SetCursorMode/ProcessInputEnabling calls below
-        // crash inside samp.dll at startup. The gate also guarantees SA-MP is
-        // up by the time we reach the spawn we are correcting for.
+        const uint64_t now = ::GetTickCount64();
+
+        // Arm the correction window whenever focus actually leaves CEF, so the
+        // cursor GTA re-shows during the post-login spawn gets swallowed.
+        if (edge_teardown)
+            correct_until_tick_ = now + kSpawnCursorCorrectionMs;
+
+        // Outside the window, before the first focus session, or while chat
+        // input is open, stay passive: those cursors are legitimate (e.g. the
+        // scoreboard/TAB and chat input show their own cursor during normal
+        // gameplay and must not be killed). The had_cef_focus_session_ guard
+        // also keeps the SA-MP calls below from running before SA-MP is
+        // initialized, which crashes samp.dll at startup.
         bool correct_stray = false;
-        if (had_cef_focus_session_ && !edge_teardown)
+        if (had_cef_focus_session_ && !edge_teardown && now < correct_until_tick_ && !IsChatInputOpen())
         {
             CURSORINFO ci{ sizeof(CURSORINFO) };
             correct_stray = ::GetCursorInfo(&ci) && (ci.flags & CURSOR_SHOWING) != 0;
