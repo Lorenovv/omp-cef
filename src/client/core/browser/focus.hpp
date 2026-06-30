@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 
 class BrowserManager;
 
@@ -40,12 +41,18 @@ private:
     // focus is released on auth completion) - otherwise the cursor stays stuck.
     bool cursor_shown_ = false;
 
-    // Set true once any CEF browser has been focused. Gates the per-frame stray
-    // cursor correction in Update() so it never calls into SA-MP game functions
-    // before the first focus (GTA/SA-MP menu, loading screen, server browser),
-    // where those calls dereference uninitialized samp.dll state and crash at
-    // startup. By the post-login spawn (the case we correct) SA-MP is up.
+    // Set true once any CEF browser has been focused. Hard guard so the stray
+    // cursor correction in Update() never calls into SA-MP game functions
+    // before the first focus (menu / loading screen / server browser), where
+    // those calls dereference uninitialized samp.dll state and crash at start.
     bool had_cef_focus_session_ = false;
+
+    // While GetTickCount64() < this, Update() actively re-hides a stray OS
+    // cursor. Armed for a short window each time focus leaves CEF, to swallow
+    // the cursor GTA re-shows during the post-login spawn. Outside the window
+    // we stay passive so legitimate cursors that appear during normal gameplay
+    // (scoreboard/TAB, chat input) are left alone.
+    uint64_t correct_until_tick_ = 0;
 
     // Browser ID currently holding input focus (-1 = none)
     std::atomic<int> input_focused_browser_id_{ -1 };
