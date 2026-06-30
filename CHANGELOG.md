@@ -1,4 +1,13 @@
 
+## [1.0.5](https://github.com/aurora-mp/omp-cef/compare/v1.0.4..v1.0.5) (2026-06-30)
+
+### 🐛 Bug Fixes
+
+- *(focus)* Continuously hide stray OS cursor while unfocused (post-login spawn re-show) - ([8c8bd4d](https://github.com/aurora-mp/omp-cef/commit/8c8bd4dee45c2a06d76c38be57a8d73b4e6b4675))
+
+
+
+
 ## [1.0.4](https://github.com/aurora-mp/omp-cef/compare/v1.0.3..v1.0.4) (2026-06-30)
 
 ### 🐛 Bug Fixes
