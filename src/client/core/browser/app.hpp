@@ -14,6 +14,23 @@ public:
         command_line->AppendSwitchWithValue("allow-browser-signin", "false");
         command_line->AppendSwitch("enable-begin-frame-scheduling");
 
+        // === disable Chromium's built-in on-device AI model service ===
+        //
+        // Chromium ships an on-device model service (Gemini Nano / optimization
+        // guide, plus the built-in window.ai / Prompt APIs). Roughly two minutes
+        // after launch it lazily spins up, tries to acquire a GPU adapter for its
+        // ML backend, fails ("Unable to get gpu adapter" / "Error loading
+        // backend"), and destabilizes the shared GPU process. That takes the OSR
+        // compositor down with it: OnPaint stops and the overlay freezes at a
+        // fixed frame while the game and network keep running. The overlay never
+        // uses any of these features, so disable them outright.
+        command_line->AppendSwitchWithValue(
+            "disable-features",
+            "OptimizationGuideOnDeviceModel,OptimizationGuideModelExecution,"
+            "OptimizationHints,TextSafetyClassifier,AIPromptAPI,"
+            "AISummarizationAPI,AIRewriterAPI,AIWriterAPI,"
+            "AILanguageDetectionAPI,AITranslationAPI");
+
         // === alt+tab survival while keeping full GPU acceleration ===
         //
         // 1) GPU watchdog kills the GPU process when its thread briefly stalls
