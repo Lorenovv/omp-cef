@@ -11,14 +11,20 @@ namespace {
 
 void __fastcall RenderHook::hkCEntity_Render(CEntity* pThis, void* /*_edx*/)
 {
-    auto* self = s_self_;
-    if (self) {
-        self->browser_.OnBeforeEntityRender(pThis);
-        s_original_(pThis);
-        self->browser_.OnAfterEntityRender(pThis);
-    } else {
-        s_original_(pThis);
-    }
+    // [DIAG 2026-07-01] Per-entity CEF texture-swap disabled to test the driving-freeze.
+    // This hook runs on EVERY world entity EVERY frame; while driving the entity count
+    // explodes and this path is the prime suspect for the ~2 min freeze. No browser is
+    // rendered onto an in-world 3D surface, so OnBeforeEntityRender/OnAfterEntityRender
+    // are not needed. To restore the feature, re-add the swap/restore calls:
+    //     auto* self = s_self_;
+    //     if (self) {
+    //         self->browser_.OnBeforeEntityRender(pThis);
+    //         s_original_(pThis);
+    //         self->browser_.OnAfterEntityRender(pThis);
+    //     } else {
+    //         s_original_(pThis);
+    //     }
+    s_original_(pThis);
 }
 
 bool RenderHook::Initialize()
