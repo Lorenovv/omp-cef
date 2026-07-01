@@ -1,4 +1,13 @@
 
+## [1.1.0](https://github.com/aurora-mp/omp-cef/compare/v1.0.9..v1.1.0) (2026-07-01)
+
+### 🐛 Bug Fixes
+
+- *(cef)* Throttle external begin frames to ~60fps to prevent overlay freeze while driving - ([fc4cec4](https://github.com/aurora-mp/omp-cef/commit/fc4cec4301c623f2b69ddfa8644af55b28f1d048))
+
+
+
+
 ## [1.0.9](https://github.com/aurora-mp/omp-cef/compare/v1.0.8..v1.0.9) (2026-07-01)
 
 
