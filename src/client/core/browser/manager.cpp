@@ -1324,7 +1324,21 @@ bool BrowserManager::RenderAll()
         return false;
 
     UpdateAudioSpatialization();
-    SendExternalBeginFrames();
+
+    // Throttle external begin frames to ~60 fps. The game render loop can call
+    // RenderAll 100-200+ times per second while driving; feeding the CEF
+    // compositor begin frames far above the windowless frame rate can stall
+    // frame production after a few minutes of sustained load, which freezes the
+    // overlay while the game keeps running. A fixed cadence keeps it stable.
+    {
+        static uint64_t s_last_begin_frame_ms = 0;
+        const uint64_t begin_frame_now = ::GetTickCount64();
+        if (begin_frame_now - s_last_begin_frame_ms >= 16)
+        {
+            s_last_begin_frame_ms = begin_frame_now;
+            SendExternalBeginFrames();
+        }
+    }
 
     for (auto& [id, inst] : browsers_)
     {
