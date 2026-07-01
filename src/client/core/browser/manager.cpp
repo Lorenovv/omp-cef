@@ -32,6 +32,13 @@ static void ConfigureBrowserSettings(CefBrowserSettings& settings)
     settings.remote_fonts = STATE_ENABLED;
     settings.webgl = STATE_ENABLED;
     settings.tab_to_links = STATE_DISABLED;
+
+    // Drive frames from CEF's internal begin-frame source at a fixed 60 fps
+    // (paired with external_begin_frame_enabled = false below). We used to pump
+    // begin frames manually from the game loop; at the game's 100-200+ fps while
+    // driving that stalled the CEF compositor after ~2 minutes and froze the
+    // overlay. Letting CEF schedule its own begin frames avoids that entirely.
+    settings.windowless_frame_rate = 60;
 }
 
 static uint32_t GetCefEventFlags()
@@ -683,7 +690,9 @@ void BrowserManager::CreateBrowserInternal(
 
     CefWindowInfo windowInfo;
     windowInfo.SetAsWindowless(gta_.GetHwnd());
-    windowInfo.external_begin_frame_enabled = true;
+    // Use CEF's internal begin-frame source (see ConfigureBrowserSettings)
+    // instead of pumping SendExternalBeginFrame ourselves.
+    windowInfo.external_begin_frame_enabled = false;
     CefBrowserSettings bs;
     ConfigureBrowserSettings(bs);
     CefBrowserHost::CreateBrowser(
@@ -740,7 +749,9 @@ void BrowserManager::CreateWorldBrowserInternal(
 
     CefWindowInfo windowInfo;
     windowInfo.SetAsWindowless(gta_.GetHwnd());
-    windowInfo.external_begin_frame_enabled = true;
+    // Use CEF's internal begin-frame source (see ConfigureBrowserSettings)
+    // instead of pumping SendExternalBeginFrame ourselves.
+    windowInfo.external_begin_frame_enabled = false;
     CefBrowserSettings bs;
     ConfigureBrowserSettings(bs);
     CefBrowserHost::CreateBrowser(windowInfo, browsers_[id]->client, url, bs, nullptr, CefRequestContext::GetGlobalContext());
@@ -803,7 +814,9 @@ void BrowserManager::CreateWorld2DBrowserInternal(
 
     CefWindowInfo windowInfo;
     windowInfo.SetAsWindowless(gta_.GetHwnd());
-    windowInfo.external_begin_frame_enabled = true;
+    // Use CEF's internal begin-frame source (see ConfigureBrowserSettings)
+    // instead of pumping SendExternalBeginFrame ourselves.
+    windowInfo.external_begin_frame_enabled = false;
     CefBrowserSettings bs;
     ConfigureBrowserSettings(bs);
     CefBrowserHost::CreateBrowser(windowInfo, browsers_[id]->client, url, bs, nullptr, CefRequestContext::GetGlobalContext());
@@ -1202,7 +1215,6 @@ void BrowserManager::RequestVisibleBrowsersRepaint()
         host->WasHidden(false);
         host->WasResized();
         host->Invalidate(PET_VIEW);
-        host->SendExternalBeginFrame();
     }
 }
 
@@ -1325,20 +1337,12 @@ bool BrowserManager::RenderAll()
 
     UpdateAudioSpatialization();
 
-    // Throttle external begin frames to ~60 fps. The game render loop can call
-    // RenderAll 100-200+ times per second while driving; feeding the CEF
-    // compositor begin frames far above the windowless frame rate can stall
-    // frame production after a few minutes of sustained load, which freezes the
-    // overlay while the game keeps running. A fixed cadence keeps it stable.
-    {
-        static uint64_t s_last_begin_frame_ms = 0;
-        const uint64_t begin_frame_now = ::GetTickCount64();
-        if (begin_frame_now - s_last_begin_frame_ms >= 16)
-        {
-            s_last_begin_frame_ms = begin_frame_now;
-            SendExternalBeginFrames();
-        }
-    }
+    // CEF now drives its own begin frames via the internal begin-frame source
+    // (external_begin_frame_enabled = false + windowless_frame_rate = 60), so we
+    // no longer pump SendExternalBeginFrame from the game loop. Doing that at the
+    // game's 100-200+ fps while driving stalled the compositor's frame
+    // production after ~2 minutes and froze the overlay. RenderAll now only
+    // blits whatever pixels CEF has already produced through OnPaint.
 
     for (auto& [id, inst] : browsers_)
     {
