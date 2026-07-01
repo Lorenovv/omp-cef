@@ -1,4 +1,9 @@
 
+## [1.1.1](https://github.com/aurora-mp/omp-cef/compare/v1.1.0..v1.1.1) (2026-07-01)
+
+
+
+
 ## [1.1.0](https://github.com/aurora-mp/omp-cef/compare/v1.0.9..v1.1.0) (2026-07-01)
 
 ### 🐛 Bug Fixes
