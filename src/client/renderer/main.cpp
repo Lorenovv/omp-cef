@@ -1,4 +1,4 @@
-﻿#include "include/cef_app.h"
+#include "include/cef_app.h"
 #include "include/cef_render_process_handler.h"
 #include "include/wrapper/cef_helpers.h"
 
@@ -15,6 +15,15 @@ static std::map<std::string, std::vector<CefRefPtr<CefV8Value>>> events_;
 using PendingArg  = std::variant<std::monostate, bool, int, double, CefString>;
 using PendingArgs = std::vector<PendingArg>;
 static std::map<std::string, std::vector<PendingArgs>> pending_events_;
+
+// Hard cap for the pending queue per event name.
+// High-frequency broadcast events (hud:update, hud:vehicle, map:update) are delivered
+// to EVERY browser's renderer process, but browsers that never register a cef.on()
+// handler for them (dialogs/license/info/knockout) would otherwise accumulate these
+// forever, leaking memory in renderer.exe until the CEF overlay froze after a few
+// minutes of driving. Keeping only the most recent entries preserves a genuine
+// startup race (handler registers within the first few events) while bounding memory.
+static constexpr size_t kMaxPendingPerEvent = 32;
 
 static bool g_chat_input_open = false;
 
@@ -75,6 +84,17 @@ static PendingArgs CapturePendingArgs(CefRefPtr<CefListValue> args)
     }
 
     return out;
+}
+
+// Push a pending event while enforcing the per-event cap (drops the oldest entry).
+static void EnqueuePendingEvent(const std::string& eventName, PendingArgs&& capturedArgs)
+{
+    auto& queue = pending_events_[eventName];
+    queue.push_back(std::move(capturedArgs));
+
+    // We push one at a time, so at most one entry can exceed the cap.
+    if (queue.size() > kMaxPendingPerEvent)
+        queue.erase(queue.begin());
 }
 
 static void FlushPendingEvents(const std::string& eventName)
@@ -296,6 +316,18 @@ public:
                 g_chat_input_open = args->GetBool(1);
             }
 
+            auto it = events_.find(eventName);
+            const bool hasHandler = (it != events_.end() && !it->second.empty());
+
+            CefRefPtr<CefV8Context> context = frame->GetV8Context();
+            if (!hasHandler || !context || !context->Enter())
+            {
+                // No handler (or context not enterable): queue for later replay, but
+                // enforce a hard cap so never-handled broadcast events cannot leak memory.
+                EnqueuePendingEvent(eventName, CapturePendingArgs(args));
+                return true;
+            }
+
             CefV8ValueList jsArgs;
             for (size_t i = 1; i < args->GetSize(); ++i)
             {
@@ -317,16 +349,6 @@ public:
                         jsArgs.push_back(CefV8Value::CreateNull()); 
                         break;
                 }
-            }
-
-            auto it = events_.find(eventName);
-            const bool hasHandler = (it != events_.end() && !it->second.empty());
-
-            CefRefPtr<CefV8Context> context = frame->GetV8Context();
-            if (!hasHandler || !context || !context->Enter())
-            {
-                pending_events_[eventName].push_back(CapturePendingArgs(args));
-                return true;
             }
 
             for (const auto& cb : it->second)
