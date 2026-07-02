@@ -1,4 +1,16 @@
 
+## [1.1.3](https://github.com/aurora-mp/omp-cef/compare/v1.1.2..v1.1.3) (2026-07-02)
+
+### ✨ Features
+
+- *(client)* Serve loose build assets from <game_dir>/cef before VFS (local-first, server fallback) - ([71e1650](https://github.com/aurora-mp/omp-cef/commit/71e16506d3a681cca664d6e551ceca839f424d27))
+- *(client)* Add local_resources_path_ for build-shipped assets - ([c3170c5](https://github.com/aurora-mp/omp-cef/commit/c3170c537b02919967f69117393473374cad73a1))
+- *(client)* Implement Gta::GetGameDirPath() (game exe directory) - ([8bb07f8](https://github.com/aurora-mp/omp-cef/commit/8bb07f8d80b37c643544e0e7bf9fcc7f815f46d3))
+- *(client)* Declare Gta::GetGameDirPath() for local build resources - ([ae2b832](https://github.com/aurora-mp/omp-cef/commit/ae2b832b32be7f74a218def3914c216241ab7267))
+
+
+
+
 ## [1.1.2](https://github.com/aurora-mp/omp-cef/compare/v1.1.1..v1.1.2) (2026-07-01)
 
 
