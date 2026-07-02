@@ -23,6 +23,11 @@ public:
 
     std::string GetUserFilesPath();
 
+    // Absolute path to the game directory (folder that contains the game .exe).
+    // Used to locate loose client-side resources shipped with the build,
+    // e.g. <game_dir>/cef/img/<file>. Returns "" on failure.
+    std::string GetGameDirPath();
+
     HWND GetHwnd() const { return hwnd_.load(std::memory_order_acquire); }
     bool IsReady() const { return hwnd_.load(std::memory_order_acquire) != nullptr; }
 
