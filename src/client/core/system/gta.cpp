@@ -293,3 +293,35 @@ std::string Gta::GetUserFilesPath()
         return "";
     }
 }
+
+std::string Gta::GetGameDirPath()
+{
+    wchar_t buffer[MAX_PATH] = {};
+    DWORD len = ::GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+    if (len == 0 || len >= MAX_PATH)
+    {
+        LOG_ERROR("[GTA] Failed to get game module path.");
+        return "";
+    }
+
+    try {
+        std::filesystem::path exePath = buffer;
+        std::wstring dir = exePath.parent_path().wstring();
+
+        int utf8Len = WideCharToMultiByte(CP_UTF8, 0, dir.c_str(), -1, nullptr, 0, nullptr, nullptr);
+        if (utf8Len <= 0)
+            return "";
+
+        std::string path(utf8Len, '\0');
+        WideCharToMultiByte(CP_UTF8, 0, dir.c_str(), -1, &path[0], utf8Len, nullptr, nullptr);
+
+        if (!path.empty() && path.back() == '\0')
+            path.pop_back();
+
+        return path;
+    }
+    catch (const std::exception& e) {
+        LOG_ERROR("[GTA] Game dir path error: {}", e.what());
+        return "";
+    }
+}
