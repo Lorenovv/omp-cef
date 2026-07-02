@@ -92,6 +92,12 @@ private:
 	std::string base_cache_path_;
 	std::string server_cache_path_;
 
+	// Root of loose client-side resources shipped with the game build:
+	// <game_dir>/cef/. A file at <local_resources_path_><resource>/<path>
+	// (e.g. cef/img/school.jpg) is served directly, bypassing the download
+	// and the encrypted VFS. Missing files fall back to server .pak content.
+	std::string local_resources_path_;
+
 	std::string server_ip_;
 	std::vector<uint8_t> master_key_;
 
