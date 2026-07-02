@@ -12,6 +12,29 @@
 #include "shared/utils.hpp"
 #include "ui/download_dialog.hpp"
 
+// Reads a loose file from disk into a byte buffer.
+// Returns false if the file cannot be opened or read (e.g. missing), which is
+// the normal signal to fall back to the downloaded/cached .pak content.
+static bool ReadLocalFileBytes(const std::string& path, std::vector<uint8_t>& out)
+{
+	std::ifstream file(path, std::ios::binary | std::ios::ate);
+	if (!file.is_open())
+		return false;
+
+	std::streamoff size = file.tellg();
+	if (size < 0)
+		return false;
+
+	file.seekg(0, std::ios::beg);
+
+	std::vector<uint8_t> buffer(static_cast<size_t>(size));
+	if (size > 0 && !file.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(size)))
+		return false;
+
+	out = std::move(buffer);
+	return true;
+}
+
 ResourceManager::ResourceManager(Gta& gta) : gta_(gta) {}
 
 
@@ -29,6 +52,24 @@ void ResourceManager::Initialize()
 {
 	base_cache_path_ = gta_.GetUserFilesPath() + "/cef/cache/";
 	std::filesystem::create_directories(base_cache_path_);
+
+	// Loose build-shipped assets root: <game_dir>/cef/
+	// Files placed here (e.g. cef/img/<file>) are served directly by
+	// GetFileContent, letting the launcher bundle heavy/static assets so players
+	// don't have to download them from the server on connect.
+	std::string game_dir = gta_.GetGameDirPath();
+	if (!game_dir.empty())
+	{
+		std::filesystem::path root = std::filesystem::path(game_dir) / "cef";
+		local_resources_path_ = root.string();
+		if (!local_resources_path_.empty() &&
+			local_resources_path_.back() != '/' &&
+			local_resources_path_.back() != '\\')
+		{
+			local_resources_path_ += '/';
+		}
+		LOG_INFO("[ResourceManager] Local build assets root: {}", local_resources_path_);
+	}
 }
 
 void ResourceManager::SetResourcesLoaderUiEnabled(bool enabled)
@@ -367,6 +408,24 @@ bool ResourceManager::GetFileContent(const std::string& resourceName,
 	const std::string& internalPath,
 	std::vector<uint8_t>& outContent)
 {
+	// Local build override (local-first, server fallback):
+	// Prefer a loose file shipped with the client build at
+	// <game_dir>/cef/<resourceName>/<internalPath> (e.g. cef/img/school.jpg).
+	// It is served as-is (no download, no decryption). When the file is not
+	// present locally, we fall through to the downloaded/cached .pak content
+	// held in the in-memory VFS below.
+	if (!local_resources_path_.empty() &&
+		resourceName.find("..") == std::string::npos &&
+		internalPath.find("..") == std::string::npos)
+	{
+		const std::string local_path = local_resources_path_ + resourceName + "/" + internalPath;
+		if (ReadLocalFileBytes(local_path, outContent))
+		{
+			LOG_DEBUG("[ResourceManager] Served '{}/{}' from local build folder", resourceName, internalPath);
+			return true;
+		}
+	}
+
 	std::lock_guard<std::mutex> lock(vfs_mutex_);
 
 	auto it = loaded_resources_vfs_.find(resourceName);
