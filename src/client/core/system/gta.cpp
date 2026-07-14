@@ -16,6 +16,9 @@ void Gta::Initialize()
 
     shutdown_.store(false, std::memory_order_release);
     found_.store(false, std::memory_order_release);
+    hwnd_.store(nullptr, std::memory_order_release);
+
+    std::lock_guard<std::mutex> lock(search_mutex_);
     search_thread_ = std::thread(&Gta::SearchThreadLoop, this);
 }
 
@@ -24,8 +27,11 @@ void Gta::Shutdown()
     if (shutdown_.exchange(true, std::memory_order_acq_rel))
         return;
 
-    if (search_thread_.joinable())
-        search_thread_.join();
+    {
+        std::lock_guard<std::mutex> lock(search_mutex_);
+        if (search_thread_.joinable())
+            search_thread_.join();
+    }
 
     LOG_INFO("[GTA] HWND search stopped.");
 }
@@ -81,12 +87,34 @@ void Gta::SetOnHwndFound(std::function<void(HWND)> callback)
     }
 }
 
+void Gta::RetryHwndSearch(HWND stale_hwnd)
+{
+    if (shutdown_.load(std::memory_order_acquire))
+        return;
+
+    std::lock_guard<std::mutex> lock(search_mutex_);
+
+    const HWND current = hwnd_.load(std::memory_order_acquire);
+    if (stale_hwnd && current != stale_hwnd)
+        return;
+
+    if (search_thread_.joinable())
+        search_thread_.join();
+
+    hwnd_.store(nullptr, std::memory_order_release);
+    found_.store(false, std::memory_order_release);
+
+    LOG_WARN("[GTA] HWND became invalid; restarting window search.");
+    search_thread_ = std::thread(&Gta::SearchThreadLoop, this);
+}
+
 void Gta::SearchThreadLoop()
 {
     using namespace std::chrono;
     using namespace std::chrono_literals;
 
     int iteration = 0;
+    const DWORD pid = ::GetCurrentProcessId();
     auto start = steady_clock::now();
     auto last_log = start;
 
@@ -95,17 +123,25 @@ void Gta::SearchThreadLoop()
         iteration++;
 
         HWND hwnd = FindHwndFromMemory();
+        if (!IsGameWindowCandidate(hwnd, pid))
+            hwnd = nullptr;
 
         if (!hwnd) 
             hwnd = FindHwndByTitle();
+        if (!IsGameWindowCandidate(hwnd, pid))
+            hwnd = nullptr;
 
         if (!hwnd) 
             hwnd = FindHwndByClass();
+        if (!IsGameWindowCandidate(hwnd, pid))
+            hwnd = nullptr;
 
         if (!hwnd && iteration > 50) 
             hwnd = FindHwndByProcess();
+        if (!IsGameWindowCandidate(hwnd, pid))
+            hwnd = nullptr;
 
-        if (hwnd && ::IsWindow(hwnd))
+        if (hwnd)
         {
             OnHwndDiscovered(hwnd);
             break;
@@ -126,6 +162,9 @@ void Gta::SearchThreadLoop()
 
 void Gta::OnHwndDiscovered(HWND hwnd)
 {
+    if (!IsGameWindowCandidate(hwnd, ::GetCurrentProcessId()))
+        return;
+
     if (found_.exchange(true, std::memory_order_acq_rel))
         return;
 
@@ -324,4 +363,39 @@ std::string Gta::GetGameDirPath()
         LOG_ERROR("[GTA] Game dir path error: {}", e.what());
         return "";
     }
+}
+
+bool Gta::IsGameWindowCandidate(HWND hwnd, DWORD pid) noexcept
+{
+    if (!hwnd || !::IsWindow(hwnd) || !BelongsToCurrentProcess(hwnd, pid))
+        return false;
+
+    if (::GetAncestor(hwnd, GA_ROOT) != hwnd || ::GetParent(hwnd) != nullptr)
+        return false;
+
+    if (!::IsWindowVisible(hwnd))
+        return false;
+
+    const LONG_PTR style = ::GetWindowLongPtrW(hwnd, GWL_STYLE);
+    if ((style & WS_CHILD) != 0)
+        return false;
+
+    RECT client{};
+    if (!::GetClientRect(hwnd, &client))
+        return false;
+
+    const LONG width = client.right - client.left;
+    const LONG height = client.bottom - client.top;
+    if (width < 320 || height < 200)
+        return false;
+
+    wchar_t class_name[128] = {};
+    if (::GetClassNameW(hwnd, class_name, 128) > 0)
+    {
+        ::CharLowerBuffW(class_name, static_cast<DWORD>(wcslen(class_name)));
+        if (wcsstr(class_name, L"omp_cef_d3d9_dummy") != nullptr)
+            return false;
+    }
+
+    return true;
 }

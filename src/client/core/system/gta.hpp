@@ -32,6 +32,7 @@ public:
     bool IsReady() const { return hwnd_.load(std::memory_order_acquire) != nullptr; }
 
     void SetOnHwndFound(std::function<void(HWND)> callback);
+    void RetryHwndSearch(HWND stale_hwnd);
     void PostToMainThread(std::function<void()> fn);
 
 private:
@@ -42,6 +43,7 @@ private:
 
     void SearchThreadLoop();
     void OnHwndDiscovered(HWND hwnd);
+    static bool IsGameWindowCandidate(HWND hwnd, DWORD pid) noexcept;
 
     struct SearchData { DWORD pid; HWND result; };
 
@@ -59,6 +61,7 @@ private:
     std::atomic<bool> found_{ false };
 
     std::thread search_thread_;
+    std::mutex search_mutex_;
 
     std::mutex callback_mutex_;
     std::function<void(HWND)> on_hwnd_found_;

@@ -272,6 +272,8 @@ void Runtime::FinalizeInitialization(HWND hwnd)
     {
         LOG_ERROR("[Runtime] FinalizeInitialization called with invalid HWND!");
         init_finalized_.store(false, std::memory_order_release);
+        if (gta_)
+            gta_->RetryHwndSearch(hwnd);
         return;
     }
 
@@ -284,6 +286,8 @@ void Runtime::FinalizeInitialization(HWND hwnd)
             LOG_ERROR("[Runtime] WndProc hook failed with HWND={}", static_cast<void*>(hwnd));
             init_finalized_.store(false, std::memory_order_release); 
             wndproc_.reset();
+            if (gta_)
+                gta_->RetryHwndSearch(hwnd);
             return;
         }
 
