@@ -1,4 +1,13 @@
 
+## [1.1.4](https://github.com/aurora-mp/omp-cef/compare/v1.1.3..v1.1.4) (2026-07-14)
+
+### 🐛 Bug Fixes
+
+- *(client)* Recover stalled CEF handshakes - ([2643306](https://github.com/aurora-mp/omp-cef/commit/26433063f92cd60b9e2c54597b7621475cfb5086))
+
+
+
+
 ## [1.1.3](https://github.com/aurora-mp/omp-cef/compare/v1.1.2..v1.1.3) (2026-07-02)
 
 ### ✨ Features
