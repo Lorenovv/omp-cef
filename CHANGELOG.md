@@ -1,4 +1,13 @@
 
+## [1.1.5](https://github.com/aurora-mp/omp-cef/compare/v1.1.4..v1.1.5) (2026-07-14)
+
+### 🐛 Bug Fixes
+
+- *(client)* Recover invalid GTA window handles - ([7b206f9](https://github.com/aurora-mp/omp-cef/commit/7b206f938be149ab77def49e2c1c55e4d57dcd95))
+
+
+
+
 ## [1.1.4](https://github.com/aurora-mp/omp-cef/compare/v1.1.3..v1.1.4) (2026-07-14)
 
 ### 🐛 Bug Fixes
