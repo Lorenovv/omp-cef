@@ -12,6 +12,7 @@
 #include "shared/version.hpp"
 
 constexpr int CONNECT_RETRY_INTERVAL_MS = 2000;
+constexpr int FINALIZE_RETRY_INTERVAL_MS = 1000;
 constexpr int KCP_UPDATE_INTERVAL_MS = 10;
 
 static int kcp_client_output_callback(const char* buf, int len, ikcpcb* /*kcp*/, void* user)
@@ -50,6 +51,7 @@ bool NetworkManager::Initialize(const std::string& ip, unsigned short port)
 	}
 
 	non_cef_server_.store(false);
+	handshake_restarts_ = 0;
 	FireSessionActive(false);
 
 	LOG_INFO("[NetworkManager] Initialized for server at {}:{}", server_endpoint_.address().to_string().c_str(), server_endpoint_.port());
@@ -92,6 +94,7 @@ void NetworkManager::Connect(int playerid)
 
 	playerid_ = playerid;
 	join_attempts_ = 0;
+	finalize_attempts_ = 0;
 
 	LOG_INFO("[CLIENT] Connecting to server for playerid {}...", playerid_);
 
@@ -184,6 +187,40 @@ void NetworkManager::DoSendRequestJoin()
 	});
 }
 
+void NetworkManager::DoSendHandshakeFinalize()
+{
+	if (state_ != ConnectionState::AWAITING_ACCEPTANCE)
+		return;
+
+	finalize_attempts_++;
+	if (finalize_attempts_ > MAX_FINALIZE_ATTEMPTS)
+	{
+		handshake_restarts_++;
+		if (handshake_restarts_ >= MAX_HANDSHAKE_RESTARTS)
+		{
+			LOG_WARN("[CLIENT] CEF handshake did not finish after {} fresh sessions -> giving up for this SA-MP connection.", MAX_HANDSHAKE_RESTARTS);
+			non_cef_server_.store(true);
+		}
+		else
+		{
+			LOG_WARN("[CLIENT] No JoinResponse after {} finalize attempts -> reopening the CEF session ({}/{}).",
+				MAX_FINALIZE_ATTEMPTS, handshake_restarts_, MAX_HANDSHAKE_RESTARTS);
+		}
+
+		Disconnect();
+		return;
+	}
+
+	LOG_INFO("[CLIENT] Sending HandshakeFinalize (attempt {}/{})...", finalize_attempts_, MAX_FINALIZE_ATTEMPTS);
+	SendPacket(PacketType::HandshakeFinalize, pending_finalize_);
+
+	connect_timer_.expires_after(std::chrono::milliseconds(FINALIZE_RETRY_INTERVAL_MS));
+	connect_timer_.async_wait([this](const std::error_code& ec) {
+		if (!ec)
+			DoSendHandshakeFinalize();
+	});
+}
+
 void NetworkManager::DoReceive()
 {
 	socket_.async_receive_from(
@@ -232,12 +269,8 @@ void NetworkManager::HandleRawMessage(const char* data, size_t len)
 			state_ = ConnectionState::AWAITING_ACCEPTANCE;
 
 			const auto& challenge = std::get<HandshakeChallengePacket>(packet.payload);
-			HandshakeFinalizePacket finalize_pkt;
-			finalize_pkt.cookie = challenge.cookie;
-			finalize_pkt.client_public_key = client_public_key_;
-
-			LOG_INFO("[CLIENT] Sending HandshakeFinalize...");
-			SendPacket(PacketType::HandshakeFinalize, finalize_pkt);
+			pending_finalize_.cookie = challenge.cookie;
+			pending_finalize_.client_public_key = client_public_key_;
 
 			auto session_keys = SecurityManager::GenerateClientSessionKeys(
 				client_public_key_, client_private_key_, challenge.server_public_key);
@@ -245,12 +278,17 @@ void NetworkManager::HandleRawMessage(const char* data, size_t len)
 			rx_key_ = std::move(session_keys.rx);
 			tx_key_ = std::move(session_keys.tx);
 			sodium_memzero(client_private_key_.data(), client_private_key_.size());
+
+			finalize_attempts_ = 0;
+			DoSendHandshakeFinalize();
 			break;
 		}
 		case PacketType::JoinResponse:
 		{
 			if (state_ != ConnectionState::AWAITING_ACCEPTANCE && state_ != ConnectionState::SENDING_JOIN)
 				return;
+
+			connect_timer_.cancel();
 
 			const auto& response = std::get<JoinResponsePacket>(packet.payload);
 			if (!response.accepted) {
@@ -275,6 +313,7 @@ void NetworkManager::HandleRawMessage(const char* data, size_t len)
 			LOG_INFO("[CLIENT] Join accepted! Initializing KCP with conv id {}.", response.kcp_conv_id);
 
 			non_cef_server_.store(false);
+			handshake_restarts_ = 0;
 			FireSessionActive(true);
 
 			{
@@ -363,12 +402,14 @@ void NetworkManager::CleanupTransport()
     if (socket_.is_open())
         socket_.close(ignored);
 
-    rx_key_.clear();
-    tx_key_.clear();
-    client_public_key_.clear();
-    client_private_key_.clear();
-    join_attempts_ = 0;
-    playerid_ = -1;
+	rx_key_.clear();
+	tx_key_.clear();
+	client_public_key_.clear();
+	client_private_key_.clear();
+	pending_finalize_ = {};
+	join_attempts_ = 0;
+	finalize_attempts_ = 0;
+	playerid_ = -1;
 }
 
 void NetworkManager::FireSessionActive(bool active)

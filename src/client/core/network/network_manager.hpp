@@ -55,6 +55,7 @@ public:
 private:
 	void DoReceive();
 	void DoSendRequestJoin();
+	void DoSendHandshakeFinalize();
 	void DoKcpUpdate();
 
 	void HandleRawMessage(const char* data, size_t len);
@@ -87,12 +88,17 @@ private:
 	std::vector<uint8_t> tx_key_;
 	std::vector<uint8_t> client_public_key_;
 	std::vector<uint8_t> client_private_key_;
+	HandshakeFinalizePacket pending_finalize_;
 
 	PacketHandler packet_handler_;
 	std::mutex handler_mutex_;
 
 	int join_attempts_ = 0;
+	int finalize_attempts_ = 0;
+	int handshake_restarts_ = 0;
 	static constexpr int MAX_JOIN_ATTEMPTS = 5;
+	static constexpr int MAX_FINALIZE_ATTEMPTS = 3;
+	static constexpr int MAX_HANDSHAKE_RESTARTS = 5;
 
 	std::atomic<bool> non_cef_server_{ false };
 
