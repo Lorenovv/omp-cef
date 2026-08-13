@@ -1,4 +1,13 @@
 
+## [1.1.7](https://github.com/aurora-mp/omp-cef/compare/v1.1.6..v1.1.7) (2026-08-13)
+
+### 🐛 Bug Fixes
+
+- *(client)* Render CEF after native SA-MP overlays - ([3b21588](https://github.com/aurora-mp/omp-cef/commit/3b21588f23ca5acf514fa7d337e7d2c19b8c6b7e))
+
+
+
+
 ## [1.1.6](https://github.com/aurora-mp/omp-cef/compare/v1.1.5..v1.1.6) (2026-08-13)
 
 ### 🐛 Bug Fixes
