@@ -1,4 +1,13 @@
 
+## [1.1.6](https://github.com/aurora-mp/omp-cef/compare/v1.1.5..v1.1.6) (2026-08-13)
+
+### 🐛 Bug Fixes
+
+- *(client)* Stabilize CEF overlay render order - ([2e7ebf3](https://github.com/aurora-mp/omp-cef/commit/2e7ebf34cab2399e6cd78378ccb77e82490c3f6a))
+
+
+
+
 ## [1.1.5](https://github.com/aurora-mp/omp-cef/compare/v1.1.4..v1.1.5) (2026-07-14)
 
 ### 🐛 Bug Fixes
