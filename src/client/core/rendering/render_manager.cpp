@@ -2,6 +2,7 @@
 
 #include <windows.h>
 #include <new>
+#include <string>
 
 #include "system/logger.hpp"
 #include "hooks/hook_manager.hpp"
@@ -23,16 +24,17 @@ namespace
         LOG_INFO("[D3D9] d3d9.dll loaded from: {}", path);
     }
 
-    void* ResolveD3D9Export(const char* name)
+    std::string ModulePathForAddress(const void* address)
     {
-        HMODULE mod = ::GetModuleHandleA("d3d9.dll");
-        if (!mod)
-            mod = ::LoadLibraryA("d3d9.dll");
+        MEMORY_BASIC_INFORMATION memory{};
+        if (!address || ::VirtualQuery(address, &memory, sizeof(memory)) == 0 || !memory.AllocationBase)
+            return "<unknown>";
 
-        if (!mod)
-            return nullptr;
+        char path[MAX_PATH]{};
+        if (::GetModuleFileNameA(static_cast<HMODULE>(memory.AllocationBase), path, MAX_PATH) == 0)
+            return "<non-module>";
 
-        return reinterpret_cast<void*>(::GetProcAddress(mod, name));
+        return path;
     }
 
     bool TryGetPresentParameters(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS& out) noexcept
@@ -56,106 +58,6 @@ namespace
         return true;
     }
 
-    static HWND CreateDummyWindow()
-    {
-        constexpr const char* className = "omp_cef_d3d9_dummy";
-
-        WNDCLASSEXA wc{};
-        wc.cbSize = sizeof(wc);
-        wc.lpfnWndProc = ::DefWindowProcA;
-        wc.hInstance = GetModuleHandleA(nullptr);
-        wc.lpszClassName = className;
-        ::RegisterClassExA(&wc);
-
-        HWND hwnd = ::CreateWindowExA(
-            WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_TRANSPARENT,
-            className,
-            "",
-            WS_POPUP,
-            -32000, -32000, 1, 1,
-            nullptr, nullptr, wc.hInstance, nullptr);
-
-        if (hwnd)
-        {
-            ::SetLayeredWindowAttributes(hwnd, 0, 0, LWA_ALPHA);
-            ::ShowWindow(hwnd, SW_HIDE);
-        }
-
-        return hwnd;
-    }
-
-    void DestroyDummyWindow(HWND hwnd) noexcept
-    {
-        if (hwnd)
-            DestroyWindow(hwnd);
-    }
-
-    bool CreateDummyDevice(IDirect3DDevice9** outDevice) noexcept
-    {
-        if (!outDevice)
-            return false;
-
-        *outDevice = nullptr;
-
-        using Create9Fn = IDirect3D9* (WINAPI*)(UINT);
-
-        auto* create9 = reinterpret_cast<Create9Fn>(ResolveD3D9Export("Direct3DCreate9"));
-        if (!create9)
-            return false;
-
-        IDirect3D9* d3d = create9(D3D_SDK_VERSION);
-        if (!d3d)
-            return false;
-
-        HWND hwnd = CreateDummyWindow();
-        if (!hwnd)
-        {
-            d3d->Release();
-            return false;
-        }
-
-        D3DPRESENT_PARAMETERS pp{};
-        pp.Windowed = TRUE;
-        pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-        pp.hDeviceWindow = hwnd;
-        pp.BackBufferFormat = D3DFMT_UNKNOWN;
-        pp.BackBufferWidth = 16;
-        pp.BackBufferHeight = 16;
-        pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-
-        IDirect3DDevice9* dev = nullptr;
-
-        DWORD flags = D3DCREATE_SOFTWARE_VERTEXPROCESSING;
-
-        HRESULT hr = d3d->CreateDevice(
-            D3DADAPTER_DEFAULT,
-            D3DDEVTYPE_HAL,
-            hwnd,
-            flags,
-            &pp,
-            &dev);
-
-        // Fallback: REF if HAL fails (rare, but better than failing bootstrap entirely)
-        if (FAILED(hr) || !dev)
-        {
-            hr = d3d->CreateDevice(
-                D3DADAPTER_DEFAULT,
-                D3DDEVTYPE_REF,
-                hwnd,
-                flags,
-                &pp,
-                &dev);
-        }
-
-        DestroyDummyWindow(hwnd);
-        d3d->Release();
-
-        if (FAILED(hr) || !dev)
-            return false;
-
-        *outDevice = dev;
-        return true;
-    }
 }
 
 bool RenderManager::IsReadablePointer(const void* pointer, size_t size) noexcept
@@ -197,12 +99,12 @@ bool RenderManager::Initialize()
 
     LogLoadedD3D9Module();
 
-    // Bootstrap: hook methods from a dummy device (covers most wrappers/mods)
-    if (!TryInstallBootstrapHooks())
-    {
-        // Not fatal. PollD3D fallback can still attach if GTA globals are readable.
-        LOG_WARN("[D3D9] Bootstrap hooks failed (dummy device). Will rely on PollD3D fallback.");
-    }
+    // Do not create a dummy D3D device here. In a modded SA-MP client the
+    // dummy's system-d3d9 methods can be hooked before SA-MP/sampvoice install
+    // their render proxies. Depending on ASI thread scheduling, that places
+    // the CEF blit on different sides of native chat and 3D-label rendering.
+    // Samp::OnLoaded calls PollD3D once the real proxy chain is complete.
+    LOG_INFO("[D3D9] Waiting for the live GTA device (dummy bootstrap disabled).");
 
     initialized_ = true;
     return true;
@@ -232,22 +134,6 @@ void RenderManager::Shutdown()
     DetachDevice();
 
     initialized_ = false;
-}
-
-bool RenderManager::TryInstallBootstrapHooks() noexcept
-{
-    IDirect3DDevice9* dummy = nullptr;
-
-    if (!CreateDummyDevice(&dummy) || !dummy)
-        return false;
-
-    // Install hooks based on dummy vtable function pointers.
-    EnsureDeviceHooksInstalled(dummy);
-
-    dummy->Release();
-
-    // If we got at least Present hooked, we're good.
-    return (orig_present_ != nullptr);
 }
 
 void RenderManager::PollD3D() noexcept
@@ -533,6 +419,7 @@ void RenderManager::EnsureDeviceHooksInstalled(IDirect3DDevice9* device) noexcep
 
     LOG_INFO("[D3D9] Hooks installed: Reset={}, BeginScene={}, EndScene={}, Present={}",
         addrReset, addrBegin, addrEnd, addrPresent);
+    LOG_INFO("[D3D9] Present target owner: {}", ModulePathForAddress(addrPresent));
 }
 
 HRESULT __stdcall RenderManager::hkReset(IDirect3DDevice9* self, D3DPRESENT_PARAMETERS* pp)

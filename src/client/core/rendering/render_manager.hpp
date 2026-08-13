@@ -11,14 +11,14 @@ class HookManager;
 
 /*
 * Goals:
-*  - Work even when the D3D device is created BEFORE our plugin starts (ASI/ENB/wrappers).
-*  - Do NOT rely on CreateDevice arguments (&gGameDevice), do NOT proxy COM interfaces.
-*  - Prefer "bootstrap" vtable hooks from a dummy device; fallback to GTA globals polling.
+ *  - Attach only after GTA/SA-MP has created its real D3D device.
+ *  - Do NOT rely on CreateDevice arguments (&gGameDevice), do NOT proxy COM interfaces.
+ *  - Hook the live device vtable after other client render proxies are in place.
 *
 * Strategy:
-*  1) Bootstrap: create a tiny dummy D3D9 device -> read vtable -> install hooks on methods.
-*  2) First Present() that matches the game window captures the real game device.
-*  3) Fallback: PollD3D reads GTA global gGameDevice and installs hooks on that device if needed.
+ *  1) PollD3D reads GTA global gGameDevice after SA-MP initialization.
+ *  2) Hooks are installed on that live device's current methods.
+ *  3) First Present() that matches the game window confirms the real game device.
 */
 
 class RenderManager
@@ -93,7 +93,6 @@ private:
     static HRESULT __stdcall hkPresent(IDirect3DDevice9* self, const RECT* src, const RECT* dst, HWND wnd, const RGNDATA* dirty);
 
 private:
-    bool TryInstallBootstrapHooks() noexcept;
     bool TryCaptureDeviceFromPresent(IDirect3DDevice9* device, HWND presentHwnd) noexcept;
     bool TryCaptureDeviceFromPointer(IDirect3DDevice9* device) noexcept;
 
