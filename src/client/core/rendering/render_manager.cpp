@@ -37,6 +37,15 @@ namespace
         return path;
     }
 
+    void* ResolveD3D9Export(const char* name)
+    {
+        HMODULE module = ::GetModuleHandleA("d3d9.dll");
+        if (!module)
+            module = ::LoadLibraryA("d3d9.dll");
+
+        return module ? reinterpret_cast<void*>(::GetProcAddress(module, name)) : nullptr;
+    }
+
     bool TryGetPresentParameters(IDirect3DDevice9* device, D3DPRESENT_PARAMETERS& out) noexcept
     {
         if (!device)
@@ -56,6 +65,70 @@ namespace
 
         out = pp;
         return true;
+    }
+
+    HWND CreateDummyWindow()
+    {
+        constexpr const char* className = "omp_cef_d3d9_deferred";
+
+        WNDCLASSEXA wc{};
+        wc.cbSize = sizeof(wc);
+        wc.lpfnWndProc = ::DefWindowProcA;
+        wc.hInstance = ::GetModuleHandleA(nullptr);
+        wc.lpszClassName = className;
+        ::RegisterClassExA(&wc);
+
+        return ::CreateWindowExA(
+            WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW,
+            className,
+            "",
+            WS_POPUP,
+            -32000, -32000, 1, 1,
+            nullptr, nullptr, wc.hInstance, nullptr);
+    }
+
+    bool CreateDummyDevice(IDirect3DDevice9** outDevice) noexcept
+    {
+        if (!outDevice)
+            return false;
+
+        *outDevice = nullptr;
+        using Create9Fn = IDirect3D9* (WINAPI*)(UINT);
+        const auto create9 = reinterpret_cast<Create9Fn>(ResolveD3D9Export("Direct3DCreate9"));
+        if (!create9)
+            return false;
+
+        IDirect3D9* direct = create9(D3D_SDK_VERSION);
+        if (!direct)
+            return false;
+
+        const HWND hwnd = CreateDummyWindow();
+        if (!hwnd)
+        {
+            direct->Release();
+            return false;
+        }
+
+        D3DPRESENT_PARAMETERS params{};
+        params.Windowed = TRUE;
+        params.SwapEffect = D3DSWAPEFFECT_DISCARD;
+        params.hDeviceWindow = hwnd;
+        params.BackBufferFormat = D3DFMT_UNKNOWN;
+        params.BackBufferWidth = 16;
+        params.BackBufferHeight = 16;
+        params.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+
+        HRESULT result = direct->CreateDevice(
+            D3DADAPTER_DEFAULT,
+            D3DDEVTYPE_HAL,
+            hwnd,
+            D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+            &params,
+            outDevice);
+
+        ::DestroyWindow(hwnd);
+        direct->Release();
+        return SUCCEEDED(result) && *outDevice;
     }
 
 }
@@ -99,12 +172,9 @@ bool RenderManager::Initialize()
 
     LogLoadedD3D9Module();
 
-    // Do not create a dummy D3D device here. In a modded SA-MP client the
-    // dummy's system-d3d9 methods can be hooked before SA-MP/sampvoice install
-    // their render proxies. Depending on ASI thread scheduling, that places
-    // the CEF blit on different sides of native chat and 3D-label rendering.
-    // Samp::OnLoaded calls PollD3D once the real proxy chain is complete.
-    LOG_INFO("[D3D9] Waiting for the live GTA device (dummy bootstrap disabled).");
+    // Resolving these methods during ASI startup races SA-MP's render proxy.
+    // Samp::OnLoaded calls PollD3D after that proxy chain is complete instead.
+    LOG_INFO("[D3D9] Waiting for deferred system hook installation.");
 
     initialized_ = true;
     return true;
@@ -147,15 +217,35 @@ void RenderManager::PollD3D() noexcept
 
     last_poll_ms_ = now;
 
-    // GTA global fallback (works in many setups)
-    IDirect3DDevice9* game_device = const_cast<IDirect3DDevice9*>(gGameDevice);
-    if (!game_device || !IsReadablePointer(game_device, sizeof(void*)))
+    // Always render at the lowest Present in the chain. Hooking the live
+    // gGameDevice object instead targets samp.dll's proxy method; our callback
+    // then runs before SA-MP draws chat and 3D labels. Resolving system methods
+    // from a temporary device makes CEF the final backbuffer overlay.
+    if (!device_hooks_installed_)
+    {
+        if (!TryInstallSystemHooks())
+            LOG_WARN("[D3D9] Deferred system hook installation failed; will retry.");
         return;
+    }
 
-    TryCaptureDeviceFromPointer(game_device);
+    // The system Present hook captures the underlying real device. Never
+    // replace it with SA-MP's outer proxy from gGameDevice.
+}
 
-    // Ensure hooks are installed for THIS device class (some wrappers use unique thunks)
-    EnsureDeviceHooksInstalled(game_device);
+bool RenderManager::TryInstallSystemHooks() noexcept
+{
+    IDirect3DDevice9* dummy{};
+    if (!CreateDummyDevice(&dummy))
+        return false;
+
+    EnsureDeviceHooksInstalled(dummy);
+    dummy->Release();
+
+    if (!device_hooks_installed_)
+        return false;
+
+    LOG_INFO("[D3D9] Deferred system hooks installed.");
+    return true;
 }
 
 void RenderManager::AttachDevice(IDirect3D9* direct, IDirect3DDevice9* device, const D3DPRESENT_PARAMETERS& params) noexcept
@@ -262,50 +352,6 @@ bool RenderManager::IsGameDeviceCandidate(const D3DPRESENT_PARAMETERS* pp, HWND 
         return true;
 
     return false;
-}
-
-bool RenderManager::TryCaptureDeviceFromPointer(IDirect3DDevice9* device) noexcept
-{
-    if (!device)
-        return false;
-
-    IDirect3DDevice9* current = fast_device_.load(std::memory_order_acquire);
-    const int current_rank = capture_rank_.load(std::memory_order_acquire);
-
-    // Same device already captured
-    if (current == device && current_rank >= 1)
-        return false;
-
-    D3DPRESENT_PARAMETERS pp{};
-    (void)TryGetPresentParameters(device, pp);
-
-    if (!IsGameDeviceCandidate(&pp, nullptr))
-        return false;
-
-    // Notify destroy when switching devices
-    if (current && current != device)
-    {
-        if (OnDeviceDestroy)
-            OnDeviceDestroy();
-    }
-
-    AttachDevice(nullptr, device, pp);
-    capture_rank_.store(1, std::memory_order_release);
-
-    // Fire OnDeviceInitialize once
-    IDirect3DDevice9* prevInit = initialized_device_.exchange(device, std::memory_order_acq_rel);
-    if (prevInit != device)
-    {
-        if (OnDeviceInitialize)
-            OnDeviceInitialize(nullptr, device, pp);
-    }
-
-    if (!current)
-        LOG_INFO("[D3D9] Captured device via PollD3D fallback: device={}", (void*)device);
-    else if (current != device)
-        LOG_WARN("[D3D9] Game device changed (PollD3D): old={}, new={}", (void*)current, (void*)device);
-
-    return true;
 }
 
 bool RenderManager::TryCaptureDeviceFromPresent(IDirect3DDevice9* device, HWND presentHwnd) noexcept

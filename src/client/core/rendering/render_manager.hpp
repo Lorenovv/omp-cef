@@ -13,12 +13,12 @@ class HookManager;
 * Goals:
  *  - Attach only after GTA/SA-MP has created its real D3D device.
  *  - Do NOT rely on CreateDevice arguments (&gGameDevice), do NOT proxy COM interfaces.
- *  - Hook the live device vtable after other client render proxies are in place.
+ *  - Hook the final system D3D9 methods after other client proxies are in place.
 *
 * Strategy:
- *  1) PollD3D reads GTA global gGameDevice after SA-MP initialization.
- *  2) Hooks are installed on that live device's current methods.
- *  3) First Present() that matches the game window confirms the real game device.
+ *  1) After SA-MP initialization, a temporary device resolves system d3d9 methods.
+ *  2) Hooks are installed on those final methods, below SA-MP's proxy object.
+ *  3) First Present() that matches the game window captures the real game device.
 */
 
 class RenderManager
@@ -93,8 +93,8 @@ private:
     static HRESULT __stdcall hkPresent(IDirect3DDevice9* self, const RECT* src, const RECT* dst, HWND wnd, const RGNDATA* dirty);
 
 private:
+    bool TryInstallSystemHooks() noexcept;
     bool TryCaptureDeviceFromPresent(IDirect3DDevice9* device, HWND presentHwnd) noexcept;
-    bool TryCaptureDeviceFromPointer(IDirect3DDevice9* device) noexcept;
 
     void EnsureDeviceHooksInstalled(IDirect3DDevice9* device) noexcept;
 

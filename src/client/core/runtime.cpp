@@ -206,6 +206,13 @@ bool Runtime::Start()
 	samp_ = std::make_unique<Samp>(*hooks_);
 	samp_->OnLoaded = [this]()
 	{
+		if (gta_)
+		{
+			const HWND hwnd = gta_->GetHwnd();
+			if (hwnd && ::IsWindow(hwnd))
+				RenderManager::Instance().SetGameWindow(hwnd);
+		}
+
 		if (!RenderManager::Instance().GetDevice())
 			RenderManager::Instance().PollD3D();
 
@@ -293,6 +300,9 @@ void Runtime::FinalizeInitialization(HWND hwnd)
 
         wndproc_->OnMessage = [this](HWND h, UINT msg, WPARAM wParam, LPARAM lParam) -> std::optional<LRESULT>
         {
+            if (!RenderManager::Instance().GetDevice())
+                RenderManager::Instance().PollD3D();
+
             if (browser_ && browser_->OnWndProcMessage(h, msg, wParam, lParam))
                 return { TRUE };
 
