@@ -401,6 +401,15 @@ void ResourceManager::LoadLocalBuildPaks()
 			if (entry.path().extension() == ".pak")
 			{
 				std::string resourceName = entry.path().stem().string();
+
+				// Ignore CEF core runtime PAKs that are not game resources
+				if (resourceName == "resources" ||
+					resourceName == "chrome_100_percent" ||
+					resourceName == "chrome_200_percent")
+				{
+					continue;
+				}
+
 				std::string pakPath = entry.path().string();
 
 				LOG_INFO("[ResourceManager] Discovered local build PAK: {} for resource '{}'", pakPath, resourceName);
