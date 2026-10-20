@@ -1,0 +1,22 @@
+name: Build Client (CI)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Build version'
+        required: false
+        default: 'dev'
+        type: string
+
+jobs:
+  call-build-client:
+    name: Build Client
+    uses: ./.github/workflows/build-client-reusable.yml
+    with:
+      version: ${{ inputs.version || 'dev' }}
+      cef-version: 148.0.10+g7ee53f5+chromium-148.0.7778.218
+      cef-arch: windows32
+      build-type: Release
