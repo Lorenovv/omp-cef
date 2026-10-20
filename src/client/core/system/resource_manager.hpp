@@ -64,6 +64,7 @@ public:
 	DownloadState GetState() const { return state_; }
 private:
 	bool LoadPakIntoVFS(const std::string& resourceName, const std::string& pakPath);
+	void LoadLocalBuildPaks();
 
 	struct FileProgressData
 	{
@@ -97,6 +98,10 @@ private:
 	// (e.g. cef/img/school.jpg) is served directly, bypassing the download
 	// and the encrypted VFS. Missing files fall back to server .pak content.
 	std::string local_resources_path_;
+
+	// Root of dev loose resources: <game_dir>/cef_dev/.
+	// If present on the local machine, files are served directly from here with highest priority.
+	std::string dev_resources_path_;
 
 	std::string server_ip_;
 	std::vector<uint8_t> master_key_;

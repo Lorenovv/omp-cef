@@ -1,7 +1,8 @@
-﻿#include "resource_manager.hpp"
+#include "resource_manager.hpp"
 
 #include <filesystem>
 #include <fstream>
+#include <algorithm>
 
 #include <miniz.h>
 
@@ -11,6 +12,10 @@
 #include "shared/crypto.hpp"
 #include "shared/utils.hpp"
 #include "ui/download_dialog.hpp"
+
+static const std::vector<uint8_t> DEFAULT_MASTER_KEY = {
+	'T', 'h', 'i', 's', 'I', 's', 'A', '1', '6', 'B', 'y', 't', 'e', 'K', 'e', 'y'
+};
 
 // Reads a loose file from disk into a byte buffer.
 // Returns false if the file cannot be opened or read (e.g. missing), which is
@@ -69,6 +74,26 @@ void ResourceManager::Initialize()
 			local_resources_path_ += '/';
 		}
 		LOG_INFO("[ResourceManager] Local build assets root: {}", local_resources_path_);
+
+		// Check for Dev Mode folder: <game_dir>/cef_dev/
+		std::filesystem::path dev_root = std::filesystem::path(game_dir) / "cef_dev";
+		if (std::filesystem::is_directory(dev_root))
+		{
+			dev_resources_path_ = dev_root.string();
+			if (!dev_resources_path_.empty() &&
+				dev_resources_path_.back() != '/' &&
+				dev_resources_path_.back() != '\\')
+			{
+				dev_resources_path_ += '/';
+			}
+			LOG_INFO("[ResourceManager] DEV MODE ACTIVE! Overriding resources from: {}", dev_resources_path_);
+		}
+
+		if (master_key_.empty())
+		{
+			master_key_ = DEFAULT_MASTER_KEY;
+		}
+		LoadLocalBuildPaks();
 	}
 }
 
@@ -102,7 +127,12 @@ void ResourceManager::OnDisconnect()
 
 void ResourceManager::SetMasterKey(const std::vector<uint8_t>& key)
 {
+	bool changed = (master_key_ != key);
 	master_key_ = key;
+	if (changed)
+	{
+		LoadLocalBuildPaks();
+	}
 }
 
 void ResourceManager::OnManifestReceived(const std::string& manifestJson)
@@ -154,6 +184,15 @@ void ResourceManager::TriggerDownload()
 	std::vector<FileProgressData> progress_list;
 
 	for (auto& [resourceName, files] : server_manifest_.items()) {
+		// If resource is already loaded in in-memory VFS (from our local build PAKs), skip download!
+		{
+			std::lock_guard<std::mutex> lock(vfs_mutex_);
+			if (loaded_resources_vfs_.find(resourceName) != loaded_resources_vfs_.end()) {
+				LOG_INFO("[ResourceManager] Resource '{}' already loaded in VFS from local PAK. Skipping download.", resourceName);
+				continue;
+			}
+		}
+
         for (auto& file_entry : files) {
             std::string path = file_entry["path"];
             std::string server_hash = file_entry["hash"];
@@ -344,6 +383,37 @@ void ResourceManager::OnFileData(const FileDataPacket& packet)
 	}
 }
 
+void ResourceManager::LoadLocalBuildPaks()
+{
+	if (master_key_.empty() || local_resources_path_.empty())
+		return;
+
+	try
+	{
+		if (!std::filesystem::is_directory(local_resources_path_))
+			return;
+
+		for (const auto& entry : std::filesystem::directory_iterator(local_resources_path_))
+		{
+			if (!entry.is_regular_file())
+				continue;
+
+			if (entry.path().extension() == ".pak")
+			{
+				std::string resourceName = entry.path().stem().string();
+				std::string pakPath = entry.path().string();
+
+				LOG_INFO("[ResourceManager] Discovered local build PAK: {} for resource '{}'", pakPath, resourceName);
+				LoadPakIntoVFS(resourceName, pakPath);
+			}
+		}
+	}
+	catch (const std::exception& e)
+	{
+		LOG_ERROR("[ResourceManager] Error scanning local build PAKs: {}", e.what());
+	}
+}
+
 bool ResourceManager::LoadPakIntoVFS(const std::string& resourceName, const std::string& pakPath)
 {
 	if (master_key_.empty())
@@ -360,9 +430,10 @@ bool ResourceManager::LoadPakIntoVFS(const std::string& resourceName, const std:
 	}
 
 	const mz_uint num_files = mz_zip_reader_get_num_files(&zip);
-	LOG_DEBUG("[ResourceManager] Loading PAK with {} files", num_files);
+	LOG_DEBUG("[ResourceManager] Loading PAK with {} files from {}", num_files, pakPath);
 
 	VirtualFileSystem vfs;
+	std::map<std::string, VirtualFileSystem> multi_vfs;
 
 	for (mz_uint i = 0; i < num_files; ++i)
 	{
@@ -388,19 +459,55 @@ bool ResourceManager::LoadPakIntoVFS(const std::string& resourceName, const std:
 			continue;
 		}
 
-		const auto decoded_size = decoded.size();
-		vfs[file_stat.m_filename] = std::move(decoded);
-		LOG_DEBUG("[ResourceManager] Loaded file: {} ({} bytes)", file_stat.m_filename, decoded_size);
+		std::string filename = file_stat.m_filename;
+		std::replace(filename.begin(), filename.end(), '\\', '/');
+
+		if (resourceName == "bundle")
+		{
+			size_t slash = filename.find('/');
+			if (slash != std::string::npos)
+			{
+				std::string res = filename.substr(0, slash);
+				std::string path = filename.substr(slash + 1);
+				multi_vfs[res][path] = std::move(decoded);
+			}
+			else
+			{
+				vfs[filename] = std::move(decoded);
+			}
+		}
+		else
+		{
+			vfs[filename] = std::move(decoded);
+		}
 	}
 
 	mz_zip_reader_end(&zip);
 
 	{
 		std::lock_guard<std::mutex> lock(vfs_mutex_);
-		loaded_resources_vfs_[resourceName] = std::move(vfs);
+		if (resourceName == "bundle")
+		{
+			for (auto& [res, files] : multi_vfs)
+			{
+				for (auto& [path, data] : files)
+				{
+					loaded_resources_vfs_[res][path] = std::move(data);
+				}
+				LOG_INFO("[ResourceManager] Bundle mounted sub-resource '{}' ({} files)", res, loaded_resources_vfs_[res].size());
+			}
+			if (!vfs.empty())
+			{
+				loaded_resources_vfs_["bundle"] = std::move(vfs);
+			}
+		}
+		else
+		{
+			loaded_resources_vfs_[resourceName] = std::move(vfs);
+		}
 	}
 
-	LOG_INFO("[ResourceManager] Loaded resource '{}' into VFS ({} files)", resourceName, num_files);
+	LOG_INFO("[ResourceManager] Successfully loaded PAK '{}' into VFS", pakPath);
 	return true;
 }
 
@@ -408,12 +515,21 @@ bool ResourceManager::GetFileContent(const std::string& resourceName,
 	const std::string& internalPath,
 	std::vector<uint8_t>& outContent)
 {
-	// Local build override (local-first, server fallback):
-	// Prefer a loose file shipped with the client build at
-	// <game_dir>/cef/<resourceName>/<internalPath> (e.g. cef/img/school.jpg).
-	// It is served as-is (no download, no decryption). When the file is not
-	// present locally, we fall through to the downloaded/cached .pak content
-	// held in the in-memory VFS below.
+	// 0. Dev Mode override (<game_dir>/cef_dev/<resourceName>/<internalPath>)
+	if (!dev_resources_path_.empty() &&
+		resourceName.find("..") == std::string::npos &&
+		internalPath.find("..") == std::string::npos)
+	{
+		const std::string dev_path = dev_resources_path_ + resourceName + "/" + internalPath;
+		if (ReadLocalFileBytes(dev_path, outContent))
+		{
+			LOG_DEBUG("[ResourceManager] [DEV] Served '{}/{}' from dev folder", resourceName, internalPath);
+			return true;
+		}
+	}
+
+	// 1. Local build loose files (<game_dir>/cef/<resourceName>/<internalPath>)
+	// Serves loose unencrypted assets (e.g. open PNG/JPG images)
 	if (!local_resources_path_.empty() &&
 		resourceName.find("..") == std::string::npos &&
 		internalPath.find("..") == std::string::npos)
@@ -426,6 +542,7 @@ bool ResourceManager::GetFileContent(const std::string& resourceName,
 		}
 	}
 
+	// 2. In-Memory VFS (Loaded from local .pak files or server .pak)
 	std::lock_guard<std::mutex> lock(vfs_mutex_);
 
 	auto it = loaded_resources_vfs_.find(resourceName);
