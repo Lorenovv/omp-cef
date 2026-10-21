@@ -159,6 +159,9 @@ public:
     void SetEscapeMenuMode(EscapeMenuMode mode);
     EscapeMenuController& GetEscapeMenuController() { return escape_menu_; }
     int GetSavedFocusBeforePause() const { return saved_focus_before_pause_; }
+    void EmitCustomEscapeMenuVisibility();
+    void EmitCustomPlayerListVisibility();
+
 
     // Native SA:MP/open.mp TAB player list / scoreboard handling
     void SetPlayerListMode(PlayerListMode mode);
@@ -210,8 +213,7 @@ private:
     bool IsFocusedTextInputActive() const;
     void UpdateNativeUiInput();
     void DispatchNativeUiEvents();
-    void EmitCustomEscapeMenuVisibility();
-    void EmitCustomPlayerListVisibility();
+
 
     CEntity* GetEntityFromObjectId(int objectId);
     void ClearPendingPaint(int id);
