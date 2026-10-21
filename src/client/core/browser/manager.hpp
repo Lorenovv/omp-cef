@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <atomic>
 #include <bitset>
@@ -158,6 +158,7 @@ public:
     // Native GTA SA ESC/pause menu handling
     void SetEscapeMenuMode(EscapeMenuMode mode);
     EscapeMenuController& GetEscapeMenuController() { return escape_menu_; }
+    int GetSavedFocusBeforePause() const { return saved_focus_before_pause_; }
 
     // Native SA:MP/open.mp TAB player list / scoreboard handling
     void SetPlayerListMode(PlayerListMode mode);

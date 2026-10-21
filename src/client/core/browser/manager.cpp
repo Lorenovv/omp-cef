@@ -1,4 +1,4 @@
-﻿#include "manager.hpp"
+#include "manager.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -1561,7 +1561,14 @@ void BrowserManager::FocusBrowser(int browserId, bool focus)
     if (focus)
     {
         if (focusedBrowserId_ == browserId)
+        {
+            instance_to_change->view.SetFocused(true);
+            if (instance_to_change->browser && instance_to_change->browser->GetHost())
+                instance_to_change->browser->GetHost()->SetFocus(true);
+            if (focus_)
+                focus_->RequestResync();
             return;
+        }
         if (focusedBrowserId_ != -1)
         {
             if (auto* old = GetBrowserInstance(focusedBrowserId_))
@@ -1748,7 +1755,10 @@ void BrowserManager::EmitCustomEscapeMenuVisibility()
 
     if (visible)
     {
-        saved_focus_before_pause_ = focusedBrowserId_;
+        if (saved_focus_before_pause_ == -1)
+        {
+            saved_focus_before_pause_ = focusedBrowserId_;
+        }
         if (browsers_.count(9101))
         {
             FocusBrowser(9101, true);
@@ -1756,15 +1766,17 @@ void BrowserManager::EmitCustomEscapeMenuVisibility()
     }
     else
     {
-        if (saved_focus_before_pause_ != -1 && browsers_.count(saved_focus_before_pause_))
+        const int restore_id = saved_focus_before_pause_;
+        saved_focus_before_pause_ = -1;
+
+        if (restore_id != -1 && browsers_.count(restore_id))
         {
-            FocusBrowser(saved_focus_before_pause_, true);
+            FocusBrowser(restore_id, true);
         }
         else if (focusedBrowserId_ == 9101)
         {
             FocusBrowser(9101, false);
         }
-        saved_focus_before_pause_ = -1;
     }
 
     for (const auto& [id, instance] : browsers_)

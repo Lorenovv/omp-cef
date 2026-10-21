@@ -1,4 +1,4 @@
-﻿#include "client.hpp"
+#include "client.hpp"
 
 #include <vector>
 
@@ -183,11 +183,20 @@ bool BrowserClient::OnProcessMessageReceived(CefRefPtr<CefBrowser> /*browser*/,
         if (event_name == "pause:continue")
         {
             manager_.GetEscapeMenuController().SetCustomMenuOpen(false);
-            manager_.FocusBrowser(browserId_, false);
+            manager_.EmitCustomEscapeMenuVisibility();
+            return true;
         }
         else if (event_name == "pause:exit")
         {
             manager_.ExitGame();
+            return true;
+        }
+        else if (event_name == "pause:request_state")
+        {
+            if (manager_.GetEscapeMenuController().IsCustomMenuOpen())
+            {
+                manager_.EmitCustomEscapeMenuVisibility();
+            }
             return true;
         }
 
