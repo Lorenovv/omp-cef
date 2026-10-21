@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <atomic>
 #include <cstdint>
@@ -29,12 +29,12 @@ public:
     void SuppressNativeMenu();
 
     bool IsCustomMenuOpen() const;
+    void SetCustomMenuOpen(bool open);
+    void ToggleCustomMenu();
     bool HasPendingCustomMenuVisibilityChange();
 
 private:
     bool ProcessInputState(bool is_down);
-    void SetCustomMenuOpen(bool open);
-    void ToggleCustomMenu();
 
     std::atomic<EscapeMenuMode> mode_{ EscapeMenuMode::Custom };
     std::atomic<bool> input_down_{ false };
