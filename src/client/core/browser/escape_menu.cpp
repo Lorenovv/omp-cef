@@ -1,4 +1,4 @@
-#include "escape_menu.hpp"
+﻿#include "escape_menu.hpp"
 
 #include <game_sa/CMenuManager.h>
 #include <game_sa/CPad.h>
@@ -102,6 +102,11 @@ bool EscapeMenuController::UpdateInput()
     {
         input_down_.store(false, std::memory_order_release);
         return false;
+    }
+
+    if (FrontEndMenuManager.m_bMenuActive || FrontEndMenuManager.m_bActivateMenuNextFrame)
+    {
+        SuppressNativeMenu();
     }
 
     const bool escape_down = (::GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;

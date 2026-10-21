@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <thread>
 #include <atomic>
@@ -57,6 +57,7 @@ private:
 	void DoSendRequestJoin();
 	void DoSendHandshakeFinalize();
 	void DoKcpUpdate();
+	void FlushPendingClientEmits();
 
 	void HandleRawMessage(const char* data, size_t len);
 	void HandleKcpInput();
@@ -101,6 +102,9 @@ private:
 	static constexpr int MAX_HANDSHAKE_RESTARTS = 5;
 
 	std::atomic<bool> non_cef_server_{ false };
+
+	std::mutex pending_emits_mutex_;
+	std::vector<ClientEmitEventPacket> pending_client_emits_;
 
 	SessionActiveHandler session_handler_;
 	std::mutex session_mutex_;

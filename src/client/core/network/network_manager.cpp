@@ -341,6 +341,8 @@ void NetworkManager::HandleRawMessage(const char* data, size_t len)
 
 			DoKcpUpdate();
 
+			FlushPendingClientEmits();
+
 			PacketHandler handler;
 			{
 				std::lock_guard lock(handler_mutex_);
@@ -424,9 +426,35 @@ void NetworkManager::FireSessionActive(bool active)
         handler(active);
 }
 
+void NetworkManager::FlushPendingClientEmits()
+{
+	std::vector<ClientEmitEventPacket> to_send;
+	{
+		std::lock_guard<std::mutex> lock(pending_emits_mutex_);
+		to_send.swap(pending_client_emits_);
+	}
+
+	for (const auto& emit : to_send)
+	{
+		LOG_INFO("[CLIENT] Flushing early emit: {}", emit.name);
+		SendPacket(PacketType::ClientEmitEvent, emit);
+	}
+}
+
 void NetworkManager::SendPacket(PacketType type, const PacketPayload& payload)
 {
 	LOG_DEBUG("[CLIENT] SendPacket called, type={}", static_cast<int>(type));
+
+	if (type == PacketType::ClientEmitEvent && state_ != ConnectionState::CONNECTED)
+	{
+		if (std::holds_alternative<ClientEmitEventPacket>(payload))
+		{
+			std::lock_guard<std::mutex> lock(pending_emits_mutex_);
+			pending_client_emits_.push_back(std::get<ClientEmitEventPacket>(payload));
+			LOG_INFO("[CLIENT] Queued ClientEmitEvent while not connected (pending={})", pending_client_emits_.size());
+			return;
+		}
+	}
 
 	NetworkPacket packet{ type, payload };
 	std::string raw;

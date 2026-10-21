@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "rendering/view_texture.hpp"
 #include "include/internal/cef_types.h"
@@ -53,6 +53,7 @@ private:
     int height_ = 0;
     bool active_ = true;
     bool focused_ = false;
+    bool has_painted_once_ = false;
 
     LPDIRECT3DDEVICE9 device_ = nullptr;
     std::unique_ptr<ViewTexture> wrapper_;

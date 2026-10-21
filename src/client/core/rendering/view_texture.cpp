@@ -1,4 +1,4 @@
-#include "view_texture.hpp"
+﻿#include "view_texture.hpp"
 #include "system/logger.hpp"
 #include <game_sa/RenderWare.h>
 #include <cstring>
@@ -62,6 +62,7 @@ bool ViewTexture::Create(LPDIRECT3DDEVICE9 device, int width, int height)
     }
 
     strncpy_s(rwTexture_->name, "CEF_BROWSER", sizeof(rwTexture_->name));
+    Clear();
     return true;
 }
 

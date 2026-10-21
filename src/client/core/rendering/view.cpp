@@ -1,4 +1,4 @@
-#include "view.hpp"
+﻿#include "view.hpp"
 #include "system/logger.hpp"
 #include <algorithm>
 
@@ -47,6 +47,8 @@ void View::UpdateTexture(const uint8_t* data, const cef_rect_t* dirtyRects, size
     if (!wrapper_ || !data) 
         return;
 
+    has_painted_once_ = true;
+
     if (count == 0 || !dirtyRects) 
     {
         LOG_DEBUG("[View] No dirty rects provided, performing full update");
@@ -69,12 +71,13 @@ void View::OnPaint(const void* buffer, int width, int height)
     if (!wrapper_ || !buffer) 
         return;
 
+    has_painted_once_ = true;
     wrapper_->Update(buffer, width, height, false);
 }
 
 void View::Draw()
 {
-    if (!wrapper_ || !active_) 
+    if (!wrapper_ || !active_ || !has_painted_once_) 
         return;
 
     wrapper_->Draw(posX_, posY_);
@@ -82,6 +85,7 @@ void View::Draw()
 
 void View::Clear()
 {
+    has_painted_once_ = false;
     if (wrapper_)
         wrapper_->Clear();
 }
