@@ -36,7 +36,7 @@ private:
     void SetCustomMenuOpen(bool open);
     void ToggleCustomMenu();
 
-    std::atomic<EscapeMenuMode> mode_{ EscapeMenuMode::Gta };
+    std::atomic<EscapeMenuMode> mode_{ EscapeMenuMode::Custom };
     std::atomic<bool> input_down_{ false };
     std::atomic<bool> custom_menu_open_{ false };
     std::atomic<bool> custom_menu_visibility_changed_{ false };

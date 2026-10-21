@@ -1,4 +1,4 @@
-#include "manager.hpp"
+﻿#include "manager.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -566,8 +566,12 @@ void BrowserManager::CreateBrowser(
     
     if (browsers_.count(id))
     {
-        LOG_ERROR("[CEF] CreateBrowser failed: Browser with ID {} already exists.", id);
-        LOG_ERROR("[CEF] Existing browser mode: {}", (int)browsers_[id]->mode);
+        LOG_INFO("[CEF] Browser with ID {} already exists (pre-warmed). Acknowledging creation.", id);
+        if (focused)
+        {
+            FocusBrowser(id, true);
+        }
+        network_.SendBrowserCreateResult(id, true, static_cast<int>(BrowserCreateStatus::Success), "Successfully created (pre-warmed)");
         return;
     }
     CreateBrowserInternal(id, url, focused, controls_chat, width, height);
@@ -631,7 +635,12 @@ void BrowserManager::CreateBrowserInternal(
 
     if (browsers_.count(id))
     {
-        LOG_ERROR("[CEF] CreateBrowserInternal: Browser with ID {} already exists (race condition?).", id);
+        LOG_INFO("[CEF] CreateBrowserInternal: Browser with ID {} already exists (pre-warmed). Acknowledging creation.", id);
+        if (focused)
+        {
+            FocusBrowser(id, true);
+        }
+        network_.SendBrowserCreateResult(id, true, static_cast<int>(BrowserCreateStatus::Success), "Successfully created (pre-warmed)");
         return;
     }
 
@@ -960,7 +969,11 @@ void BrowserManager::DestroyAllBrowsers()
         ids.push_back(kv.first);
 
     for (int id : ids)
+    {
+        if (id == 9101)
+            continue;
         DestroyBrowser(id);
+    }
 }
 
 void BrowserManager::ReloadBrowser(int id, bool ignoreCache)
@@ -1730,6 +1743,27 @@ void BrowserManager::EmitCustomEscapeMenuVisibility()
     }
 
     const bool visible = escape_menu_.IsCustomMenuOpen();
+
+    if (visible)
+    {
+        saved_focus_before_pause_ = focusedBrowserId_;
+        if (browsers_.count(9101))
+        {
+            FocusBrowser(9101, true);
+        }
+    }
+    else
+    {
+        if (saved_focus_before_pause_ != -1 && browsers_.count(saved_focus_before_pause_))
+        {
+            FocusBrowser(saved_focus_before_pause_, true);
+        }
+        else if (focusedBrowserId_ == 9101)
+        {
+            FocusBrowser(9101, false);
+        }
+        saved_focus_before_pause_ = -1;
+    }
 
     for (const auto& [id, instance] : browsers_)
     {

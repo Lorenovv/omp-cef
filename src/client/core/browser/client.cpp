@@ -1,4 +1,4 @@
-#include "client.hpp"
+﻿#include "client.hpp"
 
 #include <vector>
 
@@ -177,6 +177,17 @@ bool BrowserClient::OnProcessMessageReceived(CefRefPtr<CefBrowser> /*browser*/,
                 bool has_focus = args->GetBool(1);
                 focus_->SetInputFocus(browserId_, has_focus);
             }
+            return true;
+        }
+
+        if (event_name == "pause:continue")
+        {
+            manager_.GetEscapeMenuController().SetCustomMenuOpen(false);
+            manager_.FocusBrowser(browserId_, false);
+        }
+        else if (event_name == "pause:exit")
+        {
+            manager_.ExitGame();
             return true;
         }
 

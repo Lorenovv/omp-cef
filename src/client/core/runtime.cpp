@@ -1,4 +1,4 @@
-#include "runtime.hpp"
+﻿#include "runtime.hpp"
 
 #include <windows.h>
 #include <atomic>
@@ -371,6 +371,12 @@ void Runtime::FinalizeInitialization(HWND hwnd)
 
     RenderManager::Instance().SetGameWindow(hwnd);
     LOG_INFO("[Runtime] Initialization finalized.");
+
+    if (browser_)
+    {
+        LOG_INFO("[Runtime] Pre-warming UI browser (id=9101)...");
+        browser_->CreateBrowser(9101, "http://cef/ui/index.html", false, true, 0.0f, 0.0f);
+    }
 }
 
 void Runtime::Stop()
