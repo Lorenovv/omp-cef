@@ -1,4 +1,4 @@
-﻿#include "manager.hpp"
+#include "manager.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -703,12 +703,13 @@ void BrowserManager::CreateBrowserInternal(
 
     CefWindowInfo windowInfo;
     windowInfo.SetAsWindowless(gta_.GetHwnd());
-    windowInfo.background_color = 0;
     // Use CEF's internal begin-frame source (see ConfigureBrowserSettings)
     // instead of pumping SendExternalBeginFrame ourselves.
     windowInfo.external_begin_frame_enabled = false;
     CefBrowserSettings bs;
     ConfigureBrowserSettings(bs);
+    if (id == 2130714627)
+        bs.background_color = 0xFF000000;
     CefBrowserHost::CreateBrowser(
         windowInfo, browsers_[id]->client, url, bs, nullptr, CefRequestContext::GetGlobalContext());
 }
@@ -763,12 +764,13 @@ void BrowserManager::CreateWorldBrowserInternal(
 
     CefWindowInfo windowInfo;
     windowInfo.SetAsWindowless(gta_.GetHwnd());
-    windowInfo.background_color = 0;
     // Use CEF's internal begin-frame source (see ConfigureBrowserSettings)
     // instead of pumping SendExternalBeginFrame ourselves.
     windowInfo.external_begin_frame_enabled = false;
     CefBrowserSettings bs;
     ConfigureBrowserSettings(bs);
+    if (id == 2130714627)
+        bs.background_color = 0xFF000000;
     CefBrowserHost::CreateBrowser(windowInfo, browsers_[id]->client, url, bs, nullptr, CefRequestContext::GetGlobalContext());
 }
 
@@ -829,12 +831,13 @@ void BrowserManager::CreateWorld2DBrowserInternal(
 
     CefWindowInfo windowInfo;
     windowInfo.SetAsWindowless(gta_.GetHwnd());
-    windowInfo.background_color = 0;
     // Use CEF's internal begin-frame source (see ConfigureBrowserSettings)
     // instead of pumping SendExternalBeginFrame ourselves.
     windowInfo.external_begin_frame_enabled = false;
     CefBrowserSettings bs;
     ConfigureBrowserSettings(bs);
+    if (id == 2130714627)
+        bs.background_color = 0xFF000000;
     CefBrowserHost::CreateBrowser(windowInfo, browsers_[id]->client, url, bs, nullptr, CefRequestContext::GetGlobalContext());
 }
 
