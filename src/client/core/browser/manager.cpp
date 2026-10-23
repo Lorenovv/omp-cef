@@ -34,8 +34,6 @@ static void ConfigureBrowserSettings(CefBrowserSettings& settings)
     settings.webgl = STATE_ENABLED;
     settings.tab_to_links = STATE_DISABLED;
     settings.background_color = 0;
-    settings.file_access_from_file_urls = STATE_ENABLED;
-    settings.universal_access_from_file_urls = STATE_ENABLED;
 
     // Drive frames from CEF's internal begin-frame source at a fixed 60 fps
     // (paired with external_begin_frame_enabled = false below). We used to pump
@@ -286,8 +284,6 @@ bool BrowserManager::Initialize()
     settings.windowless_rendering_enabled = true;
     settings.persist_session_cookies = true;
     settings.background_color = 0;
-    settings.file_access_from_file_urls = STATE_ENABLED;
-    settings.universal_access_from_file_urls = STATE_ENABLED;
 
     int exit_code = CefExecuteProcess(main_args, app.get(), nullptr);
     if (exit_code >= 0)

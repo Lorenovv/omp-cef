@@ -13,6 +13,7 @@ public:
         command_line->AppendSwitchWithValue("autoplay-policy", "no-user-gesture-required");
         command_line->AppendSwitchWithValue("allow-browser-signin", "false");
         command_line->AppendSwitch("enable-begin-frame-scheduling");
+        command_line->AppendSwitch("allow-file-access-from-files");
 
         // === disable Chromium's built-in on-device AI model service ===
         //
