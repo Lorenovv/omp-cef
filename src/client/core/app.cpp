@@ -96,7 +96,7 @@ void App::ResetSession()
     pending_clear_chat_ = false;
 
     // Destroy all browsers
-    browser_.DestroyAllBrowsers();
+    browser_.DestroyAllBrowsers(true);
 }
 
 bool App::ResourcesReady() const

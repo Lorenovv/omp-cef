@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <string>
 #include <vector>
+#include <unordered_set>
 #include <cstdint>
 
 class BrowserManager;
@@ -24,6 +25,8 @@ public:
     void OnBrowserCreated(uint32_t id, int status);
     void OnConnect();
     void OnDisconnect();
+
+    bool IsPluginBrowser(uint32_t id) const;
 
     static void __cdecl ApiCreateBrowser(uint32_t id, const char* url, bool hidden, bool focused);
     static void __cdecl ApiDestroyBrowser(uint32_t id);
@@ -51,6 +54,7 @@ private:
     };
 
     std::vector<Plugin> plugins_;
+    std::unordered_set<uint32_t> plugin_browsers_;
     BrowserManager* browser_manager_ = nullptr;
     bool initialized_ = false;
 };

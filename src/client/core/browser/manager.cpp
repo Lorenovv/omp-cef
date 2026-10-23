@@ -1,4 +1,4 @@
-#include "manager.hpp"
+﻿#include "manager.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -703,6 +703,7 @@ void BrowserManager::CreateBrowserInternal(
 
     CefWindowInfo windowInfo;
     windowInfo.SetAsWindowless(gta_.GetHwnd());
+    windowInfo.background_color = 0;
     // Use CEF's internal begin-frame source (see ConfigureBrowserSettings)
     // instead of pumping SendExternalBeginFrame ourselves.
     windowInfo.external_begin_frame_enabled = false;
@@ -762,6 +763,7 @@ void BrowserManager::CreateWorldBrowserInternal(
 
     CefWindowInfo windowInfo;
     windowInfo.SetAsWindowless(gta_.GetHwnd());
+    windowInfo.background_color = 0;
     // Use CEF's internal begin-frame source (see ConfigureBrowserSettings)
     // instead of pumping SendExternalBeginFrame ourselves.
     windowInfo.external_begin_frame_enabled = false;
@@ -827,6 +829,7 @@ void BrowserManager::CreateWorld2DBrowserInternal(
 
     CefWindowInfo windowInfo;
     windowInfo.SetAsWindowless(gta_.GetHwnd());
+    windowInfo.background_color = 0;
     // Use CEF's internal begin-frame source (see ConfigureBrowserSettings)
     // instead of pumping SendExternalBeginFrame ourselves.
     windowInfo.external_begin_frame_enabled = false;
@@ -959,11 +962,11 @@ void BrowserManager::DestroyBrowser(int id)
     LOG_DEBUG("[CEF] Browser ID {} destroyed and removed from map.", id);
 }
 
-void BrowserManager::DestroyAllBrowsers()
+void BrowserManager::DestroyAllBrowsers(bool keep_plugin_browsers)
 {
     if (!CefCurrentlyOn(TID_UI))
     {
-        CefPostTask(TID_UI, base::BindOnce(&BrowserManager::DestroyAllBrowsers, base::Unretained(this)));
+        CefPostTask(TID_UI, base::BindOnce(&BrowserManager::DestroyAllBrowsers, base::Unretained(this), keep_plugin_browsers));
         return;
     }
 
@@ -975,6 +978,8 @@ void BrowserManager::DestroyAllBrowsers()
     for (int id : ids)
     {
         if (id == 9101)
+            continue;
+        if (keep_plugin_browsers && PluginManager::Instance().IsPluginBrowser(static_cast<uint32_t>(id)))
             continue;
         DestroyBrowser(id);
     }

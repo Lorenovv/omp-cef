@@ -4,6 +4,41 @@
 #include "browser/manager.hpp"
 #include "system/logger.hpp"
 
+static bool SafeCallInitialize(void(__cdecl* fn)(void*), void* arg)
+{
+    __try
+    {
+        fn(arg);
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+}
+
+static void SafeCallVoid(void(__cdecl* fn)())
+{
+    __try
+    {
+        fn();
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+    }
+}
+
+static void SafeCallBrowserCreated(void(__cdecl* fn)(uint32_t, int), uint32_t id, int status)
+{
+    __try
+    {
+        fn(id, status);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+    }
+}
+
 void PluginManager::Initialize(BrowserManager* browserManager)
 {
     browser_manager_ = browserManager;
@@ -73,11 +108,7 @@ void PluginManager::Initialize(BrowserManager* browserManager)
         if (p.cef_initialize)
         {
             LOG_INFO("[PluginManager] Calling cef_initialize for: {}", entry.path().string());
-            __try
-            {
-                p.cef_initialize(s_ApiTable);
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER)
+            if (!SafeCallInitialize(p.cef_initialize, s_ApiTable))
             {
                 LOG_ERROR("[PluginManager] Exception in cef_initialize for: {}", entry.path().string());
             }
@@ -95,13 +126,7 @@ void PluginManager::Shutdown()
     {
         if (p.cef_quit)
         {
-            __try
-            {
-                p.cef_quit();
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER)
-            {
-            }
+            SafeCallVoid(p.cef_quit);
         }
         if (p.module)
         {
@@ -109,6 +134,7 @@ void PluginManager::Shutdown()
         }
     }
     plugins_.clear();
+    plugin_browsers_.clear();
     browser_manager_ = nullptr;
     initialized_ = false;
 }
@@ -119,13 +145,7 @@ void PluginManager::OnMainLoop()
     {
         if (p.cef_samp_mainloop)
         {
-            __try
-            {
-                p.cef_samp_mainloop();
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER)
-            {
-            }
+            SafeCallVoid(p.cef_samp_mainloop);
         }
     }
 }
@@ -136,13 +156,7 @@ void PluginManager::OnDxReset()
     {
         if (p.cef_dxreset)
         {
-            __try
-            {
-                p.cef_dxreset();
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER)
-            {
-            }
+            SafeCallVoid(p.cef_dxreset);
         }
     }
 }
@@ -153,13 +167,7 @@ void PluginManager::OnBrowserCreated(uint32_t id, int status)
     {
         if (p.cef_browser_created)
         {
-            __try
-            {
-                p.cef_browser_created(id, status);
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER)
-            {
-            }
+            SafeCallBrowserCreated(p.cef_browser_created, id, status);
         }
     }
 }
@@ -170,13 +178,7 @@ void PluginManager::OnConnect()
     {
         if (p.cef_connect)
         {
-            __try
-            {
-                p.cef_connect();
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER)
-            {
-            }
+            SafeCallVoid(p.cef_connect);
         }
     }
 }
@@ -187,20 +189,21 @@ void PluginManager::OnDisconnect()
     {
         if (p.cef_disconnect)
         {
-            __try
-            {
-                p.cef_disconnect();
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER)
-            {
-            }
+            SafeCallVoid(p.cef_disconnect);
         }
     }
+}
+
+bool PluginManager::IsPluginBrowser(uint32_t id) const
+{
+    return plugin_browsers_.count(id) > 0 || (id >= 0x7F000000);
 }
 
 void __cdecl PluginManager::ApiCreateBrowser(uint32_t id, const char* url, bool hidden, bool focused)
 {
     LOG_INFO("[PluginApi] CreateBrowser: id={}, url={}, hidden={}, focused={}", id, url ? url : "null", hidden, focused);
+    PluginManager::Instance().plugin_browsers_.insert(id);
+
     auto* bm = PluginManager::Instance().browser_manager_;
     if (!bm)
     {
@@ -218,6 +221,7 @@ void __cdecl PluginManager::ApiCreateBrowser(uint32_t id, const char* url, bool 
 void __cdecl PluginManager::ApiDestroyBrowser(uint32_t id)
 {
     LOG_INFO("[PluginApi] DestroyBrowser: id={}", id);
+    PluginManager::Instance().plugin_browsers_.erase(id);
     auto* bm = PluginManager::Instance().browser_manager_;
     if (bm)
     {
@@ -239,10 +243,22 @@ void __cdecl PluginManager::ApiFocusBrowser(uint32_t id, bool focused)
 {
     LOG_INFO("[PluginApi] FocusBrowser: id={}, focused={}", id, focused);
     auto* bm = PluginManager::Instance().browser_manager_;
-    if (bm)
+    if (!bm)
+        return;
+
+    // Safety: If the loading browser (2130714627) attempts to steal focus,
+    // but another browser (such as server auth) is currently focused, do not let it steal focus!
+    if (id == 2130714627 && focused)
     {
-        bm->FocusBrowser(static_cast<int>(id), focused);
+        int curFocus = bm->GetFocusedBrowserId();
+        if (curFocus != -1 && curFocus != 2130714627)
+        {
+            LOG_INFO("[PluginApi] Ignoring focus steal by loading browser 2130714627 (active focus={})", curFocus);
+            return;
+        }
     }
+
+    bm->FocusBrowser(static_cast<int>(id), focused);
 }
 
 extern "C"

@@ -132,7 +132,7 @@ public:
     void SetWorld2DBrowserPos(int id, float worldX, float worldY, float worldZ);
     void SetBrowserVisible(int id, bool visible);
     void DestroyBrowser(int id);
-    void DestroyAllBrowsers();
+    void DestroyAllBrowsers(bool keep_plugin_browsers = false);
     void ReloadBrowser(int id, bool ignoreCache);
     void LoadUrl(int id, const std::string& url);
     void SetDevToolsEnabled(int browserId, bool enabled);
@@ -180,6 +180,7 @@ public:
 
     BrowserInstance* GetBrowserInstance(int id);
     BrowserInstance* GetFocusedBrowser();
+    int GetFocusedBrowserId() const { return focusedBrowserId_; }
     const std::unordered_map<int, std::unique_ptr<BrowserInstance>>& GetAllBrowsers() const
     {
         return browsers_;
