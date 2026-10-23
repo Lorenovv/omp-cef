@@ -1,4 +1,4 @@
-#include "manager.hpp"
+﻿#include "manager.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -980,8 +980,6 @@ void BrowserManager::DestroyAllBrowsers(bool keep_plugin_browsers)
 
     for (int id : ids)
     {
-        if (id == 9101)
-            continue;
         if (keep_plugin_browsers && PluginManager::Instance().IsPluginBrowser(static_cast<uint32_t>(id)))
             continue;
         DestroyBrowser(id);
@@ -1770,10 +1768,6 @@ void BrowserManager::EmitCustomEscapeMenuVisibility()
         {
             saved_focus_before_pause_ = focusedBrowserId_;
         }
-        if (browsers_.count(9101))
-        {
-            FocusBrowser(9101, true);
-        }
         if (browsers_.count(2130714625))
         {
             SetBrowserVisible(2130714625, true);
@@ -1788,10 +1782,6 @@ void BrowserManager::EmitCustomEscapeMenuVisibility()
         if (restore_id != -1 && browsers_.count(restore_id))
         {
             FocusBrowser(restore_id, true);
-        }
-        else if (focusedBrowserId_ == 9101)
-        {
-            FocusBrowser(9101, false);
         }
         if (browsers_.count(2130714625))
         {
