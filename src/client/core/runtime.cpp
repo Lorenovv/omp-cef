@@ -1,4 +1,4 @@
-﻿#include "runtime.hpp"
+#include "runtime.hpp"
 
 #include <windows.h>
 #include <atomic>
@@ -24,6 +24,7 @@
 #include "system/config_manager.hpp"
 #include "system/gta.hpp"
 #include "system/logger.hpp"
+#include "system/plugin_manager.hpp"
 #include "system/resource_manager.hpp"
 #include "ui/hud_manager.hpp"
 #include "ui/download_dialog.hpp"
@@ -103,6 +104,8 @@ bool Runtime::Start()
         LOG_FATAL("CEF init failed. Disabling CEF features.");
         return true;
     }
+
+    PluginManager::Instance().Initialize(browser_.get());
     
     hooks_ = std::make_unique<HookManager>();
     if (!hooks_->Initialize()) {
@@ -129,6 +132,8 @@ bool Runtime::Start()
     {
         if (gta_)
             gta_->PumpMainThreadCallbacks();
+
+        PluginManager::Instance().OnMainLoop();
 
 		UpdateBrowserDrawState();
 
@@ -381,6 +386,7 @@ void Runtime::FinalizeInitialization(HWND hwnd)
 
 void Runtime::Stop()
 {
+    PluginManager::Instance().Shutdown();
 	if (app_)
 		app_->Shutdown();
 

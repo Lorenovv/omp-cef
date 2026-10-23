@@ -18,6 +18,7 @@
 #include "network/network_manager.hpp"
 #include "scheme_handler.hpp"
 #include "system/gta.hpp"
+#include "system/plugin_manager.hpp"
 #include "samp/components/netgame.hpp"
 #include "game_sa/CSprite.h"
 #include "game_sa/CCamera.h"
@@ -33,6 +34,8 @@ static void ConfigureBrowserSettings(CefBrowserSettings& settings)
     settings.webgl = STATE_ENABLED;
     settings.tab_to_links = STATE_DISABLED;
     settings.background_color = 0;
+    settings.file_access_from_file_urls = STATE_ENABLED;
+    settings.universal_access_from_file_urls = STATE_ENABLED;
 
     // Drive frames from CEF's internal begin-frame source at a fixed 60 fps
     // (paired with external_begin_frame_enabled = false below). We used to pump
@@ -283,6 +286,8 @@ bool BrowserManager::Initialize()
     settings.windowless_rendering_enabled = true;
     settings.persist_session_cookies = true;
     settings.background_color = 0;
+    settings.file_access_from_file_urls = STATE_ENABLED;
+    settings.universal_access_from_file_urls = STATE_ENABLED;
 
     int exit_code = CefExecuteProcess(main_args, app.get(), nullptr);
     if (exit_code >= 0)
@@ -320,6 +325,7 @@ bool BrowserManager::Initialize()
     
     render_manager.OnAfterReset = [this](IDirect3DDevice9* device, const D3DPRESENT_PARAMETERS& pp) {
         this->OnDeviceReset(device);
+        PluginManager::Instance().OnDxReset();
     };
     
     LOG_INFO("[CEF] Browser manager device lifecycle callbacks registered.");
@@ -1129,6 +1135,7 @@ CEntity* BrowserManager::GetEntityFromObjectId(int objectId)
 
 void BrowserManager::OnBrowserCreated(int id, CefRefPtr<CefBrowser> browser)
 {
+    PluginManager::Instance().OnBrowserCreated(static_cast<uint32_t>(id), 200);
     auto it = browsers_.find(id);
     if (it != browsers_.end())
     {
@@ -1763,6 +1770,11 @@ void BrowserManager::EmitCustomEscapeMenuVisibility()
         {
             FocusBrowser(9101, true);
         }
+        if (browsers_.count(2130714625))
+        {
+            SetBrowserVisible(2130714625, true);
+            FocusBrowser(2130714625, true);
+        }
     }
     else
     {
@@ -1776,6 +1788,11 @@ void BrowserManager::EmitCustomEscapeMenuVisibility()
         else if (focusedBrowserId_ == 9101)
         {
             FocusBrowser(9101, false);
+        }
+        if (browsers_.count(2130714625))
+        {
+            SetBrowserVisible(2130714625, false);
+            FocusBrowser(2130714625, false);
         }
     }
 

@@ -1,4 +1,5 @@
-﻿#include "network_manager.hpp"
+#include "network_manager.hpp"
+#include "system/plugin_manager.hpp"
 #include "shared/packet-serializer.hpp"
 #include "shared/crypto.hpp"
 #include "shared/utils.hpp"
@@ -137,6 +138,7 @@ void NetworkManager::Disconnect()
 		return;
 
 	LOG_INFO("[CLIENT] Disconnecting...");
+	PluginManager::Instance().OnDisconnect();
 	FireSessionActive(false);
 
     if (network_thread_.joinable() && network_thread_.get_id() == std::this_thread::get_id())
@@ -338,6 +340,7 @@ void NetworkManager::HandleRawMessage(const char* data, size_t len)
 			resource_.OnManifestReceived(response.manifest_json);
 
 			state_ = ConnectionState::CONNECTED;
+			PluginManager::Instance().OnConnect();
 
 			DoKcpUpdate();
 
