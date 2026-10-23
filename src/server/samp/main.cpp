@@ -78,7 +78,7 @@ PLUGIN_EXPORT unsigned int PLUGIN_CALL Supports()
     return sampgdk::Supports() | SUPPORTS_VERSION | SUPPORTS_AMX_NATIVES | SUPPORTS_PROCESS_TICK;
 }
 
-extern "C" __attribute__((visibility("default"))) PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
+PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 {
     sampgdk::ProcessTick();
     if (plugin_)
