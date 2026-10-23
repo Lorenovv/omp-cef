@@ -43,6 +43,12 @@ void PluginManager::Initialize(BrowserManager* browserManager)
         if (entry.path().extension() != L".dll")
             continue;
 
+        if (entry.path().filename() == L"cef_interface.dll")
+        {
+            LOG_INFO("[PluginManager] Skipping obsolete Laminar bridge: cef_interface.dll");
+            continue;
+        }
+
         std::wstring pluginPath = entry.path().wstring();
         LOG_INFO("[PluginManager] Loading plugin: {}", entry.path().string());
 
@@ -67,7 +73,14 @@ void PluginManager::Initialize(BrowserManager* browserManager)
         if (p.cef_initialize)
         {
             LOG_INFO("[PluginManager] Calling cef_initialize for: {}", entry.path().string());
-            p.cef_initialize(s_ApiTable);
+            __try
+            {
+                p.cef_initialize(s_ApiTable);
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER)
+            {
+                LOG_ERROR("[PluginManager] Exception in cef_initialize for: {}", entry.path().string());
+            }
         }
 
         plugins_.push_back(p);
