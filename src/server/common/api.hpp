@@ -24,6 +24,7 @@ public:
     void CreateWorld2DBrowser(int playerid, int browserid, const std::string& url, float worldX, float worldY, float worldZ, float width, float height, float offsetZ, float pivotX, float pivotY);
     void SetWorld2DBrowserPos(int playerid, int browserid, float worldX, float worldY, float worldZ);
     void SetBrowserVisible(int playerid, int browserid, bool visible);
+    void SetBrowserLayer(int playerid, int browserid, int layer);
     void DestroyBrowser(int playerid, int browserid);
     void RegisterEvent(const std::string& name, const std::string& callback, const std::vector<ArgumentType>& signature);
     void EmitEvent(int playerid, int browserid, const std::string& name, const std::vector<Argument>& args);

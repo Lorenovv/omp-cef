@@ -98,6 +98,16 @@ void CefApi::SetBrowserVisible(int playerid, int browserid, bool visible)
 	plugin_.SendPacketToPlayer(playerid, PacketType::EmitEvent, event);
 }
 
+void CefApi::SetBrowserLayer(int playerid, int browserid, int layer)
+{
+    EmitEventPacket event;
+    event.name = CefEvent::Server::SetBrowserLayer;
+    event.args.emplace_back(browserid);
+    event.args.emplace_back(layer);
+
+    plugin_.SendPacketToPlayer(playerid, PacketType::EmitEvent, event);
+}
+
 void CefApi::DestroyBrowser(int playerid, int browserid)
 {
 	EmitEventPacket event;

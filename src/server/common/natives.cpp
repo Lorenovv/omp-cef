@@ -40,6 +40,11 @@ PAWN_NATIVE(Natives, CEF_SetBrowserVisible, void(int playerid, int browserid, bo
     CefApi::Instance()->SetBrowserVisible(playerid, browserid, visible);
 }
 
+PAWN_NATIVE(Natives, CEF_SetBrowserLayer, void(int playerid, int browserid, int layer))
+{
+    CefApi::Instance()->SetBrowserLayer(playerid, browserid, layer);
+}
+
 PAWN_NATIVE(Natives, CEF_DestroyBrowser, void(int playerid, int browserid))
 {
     CefApi::Instance()->DestroyBrowser(playerid, browserid);

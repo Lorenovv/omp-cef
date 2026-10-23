@@ -11,6 +11,7 @@ namespace CefEvent
         inline constexpr const char* SetWorld2DBrowserPos = "SetWorld2DBrowserPos";
 
         inline constexpr const char* SetBrowserVisible = "SetBrowserVisible";
+        inline constexpr const char* SetBrowserLayer = "SetBrowserLayer";
         inline constexpr const char* DestroyBrowser = "DestroyBrowser";
         inline constexpr const char* ReloadBrowser = "ReloadBrowser";
         inline constexpr const char* FocusBrowser = "FocusBrowser";
