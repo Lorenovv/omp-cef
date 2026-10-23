@@ -1,3 +1,5 @@
 .vs
 build/
 deps/cef
+build_artifacts*
+v140_download/

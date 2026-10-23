@@ -33,6 +33,7 @@ void SampPlatformBridge::LogDebug(const std::string& message)
 
 void SampPlatformBridge::CallPawnPublic(const std::string& name, const std::vector<Argument>& args)
 {
+    sampgdk::logprintf("[CEF] CallPawnPublic: '%s' (args=%zu, amx_count=%zu)", name.c_str(), args.size(), g_AmxList.size());
     for (AMX* amx : g_AmxList)
     {
         int idx = 0;
@@ -76,7 +77,7 @@ void SampPlatformBridge::CallPawnPublic(const std::string& name, const std::vect
         int error = amx_Exec(amx, &ret, idx);
         if (error != AMX_ERR_NONE)
         {
-            // TODO
+            sampgdk::logprintf("[CEF] [ERROR] amx_Exec failed with code %d for '%s'", error, name.c_str());
         }
 
         if (string_pushed)

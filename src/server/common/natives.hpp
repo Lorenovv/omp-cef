@@ -122,10 +122,22 @@ namespace pawn_natives
 
             for (int i = idx; i <= total_args; ++i)
             {
-                cell* addr_type = nullptr;
-                if (amx_GetAddr(amx, params[i], &addr_type) == AMX_ERR_NONE)
+                cell val = params[i];
+                if (val >= 0 && val <= 3)
                 {
-                    args_.types.push_back(static_cast<ArgumentType>(*addr_type));
+                    args_.types.push_back(static_cast<ArgumentType>(val));
+                }
+                else
+                {
+                    cell* addr_type = nullptr;
+                    if (amx_GetAddr(amx, params[i], &addr_type) == AMX_ERR_NONE)
+                    {
+                        args_.types.push_back(static_cast<ArgumentType>(*addr_type));
+                    }
+                    else
+                    {
+                        args_.types.push_back(static_cast<ArgumentType>(params[i]));
+                    }
                 }
             }
         }

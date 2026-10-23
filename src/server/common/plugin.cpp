@@ -1,4 +1,4 @@
-﻿#include "plugin.hpp"
+#include "plugin.hpp"
 
 #include <shared/crypto.hpp>
 
@@ -69,9 +69,7 @@ void CefPlugin::Initialize(std::unique_ptr<IPlatformBridge> bridge, uint16_t lis
 
 		io_context_.restart();
 
-		network_thread_ = std::thread([this]() {
-			io_context_.run();
-		});
+		work_guard_.emplace(asio::make_work_guard(io_context_));
 
 		running_ = true;
 
@@ -103,6 +101,7 @@ void CefPlugin::Shutdown()
         security_.reset();
     }
 
+    work_guard_.reset();
     io_context_.stop();
 
     if (network_thread_.joinable()) {
@@ -118,6 +117,22 @@ void CefPlugin::Shutdown()
     bridge_.reset();
 }
 
+void CefPlugin::Poll()
+{
+	if (!running_)
+		return;
+
+	try
+	{
+		for (int i = 0; i < 512 && io_context_.poll_one() > 0; ++i)
+		{
+		}
+	}
+	catch (const std::exception& e)
+	{
+		LOG_ERROR("Network poll failed: %s", e.what());
+	}
+}
 void CefPlugin::OnPlayerConnect(int playerid)
 {
     if (!bridge_)
@@ -794,6 +809,7 @@ void CefPlugin::EndDownloadUi(int playerid)
 
 void CefPlugin::HandleClientEvent(int playerid, const ClientEmitEventPacket& payload)
 {
+    LOG_INFO("HandleClientEvent: pid=%d event='%s' args=%zu", playerid, payload.name.c_str(), payload.args.size());
 	if (payload.name == CefEvent::Client::BrowserCreateResult)
 	{
 		if (payload.args.size() >= 3)
