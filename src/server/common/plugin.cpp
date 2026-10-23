@@ -920,14 +920,14 @@ void CefPlugin::HandleClientEvent(int playerid, const ClientEmitEventPacket& pay
     const auto& reg = it->second;
     const auto& signature = reg.signature;
 
-    if (signature.size() != payload.args.size())
+    if (payload.args.size() < signature.size())
     {
-        LOG_WARN("Argument count mismatch for event '%s' (callback '%s'). Expected %zu, got %zu.",
+        LOG_WARN("Argument count mismatch for event '%s' (callback '%s'). Expected at least %zu, got %zu.",
             payload.name.c_str(), reg.callback.c_str(), signature.size(), payload.args.size());
         return;
     }
 
-    for (size_t i = 0; i < payload.args.size(); ++i)
+    for (size_t i = 0; i < signature.size(); ++i)
     {
         const auto& arg = payload.args[i];
         const auto expected = signature[i];
@@ -942,10 +942,10 @@ void CefPlugin::HandleClientEvent(int playerid, const ClientEmitEventPacket& pay
     }
 
     std::vector<Argument> final_args;
-    final_args.reserve(2 + payload.args.size());
+    final_args.reserve(2 + signature.size());
     final_args.emplace_back(playerid);
     final_args.emplace_back(payload.browserId);
-    final_args.insert(final_args.end(), payload.args.begin(), payload.args.end());
+    final_args.insert(final_args.end(), payload.args.begin(), payload.args.begin() + signature.size());
 
     bridge_->CallPawnPublic(reg.callback, final_args);
 }

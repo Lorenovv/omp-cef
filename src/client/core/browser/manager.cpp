@@ -1529,6 +1529,12 @@ BrowserInstance* BrowserManager::GetBrowserInstance(int id)
     return it != browsers_.end() ? it->second.get() : nullptr;
 }
 
+bool BrowserManager::IsBrowserVisible(int id) const
+{
+    auto it = browsers_.find(id);
+    return it != browsers_.end() && it->second && it->second->visible;
+}
+
 bool BrowserManager::IsAnyBrowserVisible() const
 {
     if (ShouldSkipBrowserRendering())
@@ -1719,6 +1725,10 @@ void BrowserManager::SetEscapeMenuMode(EscapeMenuMode mode)
 
 bool BrowserManager::ShouldSkipBrowserRendering() const
 {
+    const bool has_custom_pause = IsBrowserVisible(2130714625) || escape_menu_.IsCustomMenuOpen();
+    if (has_custom_pause)
+        return false;
+
     return !draw_enabled_ || escape_menu_.IsNativePauseMenuVisible();
 }
 

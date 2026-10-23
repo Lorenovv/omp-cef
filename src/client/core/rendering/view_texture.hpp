@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <d3d9.h>
 #include <game_sa/rw/rwcore.h>
@@ -22,6 +22,7 @@ public:
     void Update(const void* pixels, int width, int height, bool updateRwRaster = true);
     void UpdatePartial(const void* pixels, int bufferWidth, int bufferHeight, int x, int y, int width, int height, bool updateRwRaster = true);
     void Draw(int x, int y);
+    void DrawSolidColor(int x, int y, DWORD color);
 
     void Clear();
 

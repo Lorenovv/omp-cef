@@ -1,4 +1,4 @@
-#include "focus.hpp"
+﻿#include "focus.hpp"
 #include "browser/manager.hpp"
 #include <samp/components/game.hpp>
 #include <samp/common.hpp>
@@ -66,27 +66,7 @@ void FocusManager::Update()
         // This path is unchanged from the known-good 1.0.4 build.
         const bool edge_teardown = left_cef_focus || force_resync || cursor_shown_;
 
-        const uint64_t now = ::GetTickCount64();
-
-        // Arm the correction window whenever focus actually leaves CEF, so the
-        // cursor GTA re-shows during the post-login spawn gets swallowed.
         if (edge_teardown)
-            correct_until_tick_ = now + kSpawnCursorCorrectionMs;
-
-        // Outside the window, before the first focus session, or while chat
-        // input is open, stay passive: those cursors are legitimate (e.g. the
-        // scoreboard/TAB and chat input show their own cursor during normal
-        // gameplay and must not be killed). The had_cef_focus_session_ guard
-        // also keeps the SA-MP calls below from running before SA-MP is
-        // initialized, which crashes samp.dll at startup.
-        bool correct_stray = false;
-        if (had_cef_focus_session_ && !edge_teardown && now < correct_until_tick_ && !IsChatInputOpen())
-        {
-            CURSORINFO ci{ sizeof(CURSORINFO) };
-            correct_stray = ::GetCursorInfo(&ci) && (ci.flags & CURSOR_SHOWING) != 0;
-        }
-
-        if (edge_teardown || correct_stray)
         {
             CursorHook::Instance().SetForced(false);
 

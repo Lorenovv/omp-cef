@@ -192,6 +192,32 @@ void ViewTexture::UpdatePartial(const void* pixels, int bufferWidth, int bufferH
     }
 }
 
+void ViewTexture::DrawSolidColor(int x, int y, DWORD color)
+{
+    if (!device_) 
+        return;
+
+    device_->SetTexture(0, nullptr);
+    device_->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+    device_->SetRenderState(D3DRS_LIGHTING, FALSE);
+    device_->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+    device_->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+
+    const float w = static_cast<float>(width_);
+    const float h = static_cast<float>(height_);
+
+    struct Vertex { float x, y, z, rhw; DWORD color; };
+    const Vertex quad[] = {
+        { (float)x - 0.5f,       (float)y - 0.5f,       0.0f, 1.0f, color },
+        { (float)(x + w) - 0.5f, (float)y - 0.5f,       0.0f, 1.0f, color },
+        { (float)x - 0.5f,       (float)(y + h) - 0.5f, 0.0f, 1.0f, color },
+        { (float)(x + w) - 0.5f, (float)(y + h) - 0.5f, 0.0f, 1.0f, color },
+    };
+
+    device_->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+    device_->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(Vertex));
+}
+
 void ViewTexture::Draw(int x, int y)
 {
     if (!device_ || !texture_) 

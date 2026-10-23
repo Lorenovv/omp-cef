@@ -77,8 +77,17 @@ void View::OnPaint(const void* buffer, int width, int height)
 
 void View::Draw()
 {
-    if (!wrapper_ || !active_ || !has_painted_once_) 
+    if (!wrapper_ || !active_) 
         return;
+
+    if (!has_painted_once_)
+    {
+        if (id_ == 2130714627)
+        {
+            wrapper_->DrawSolidColor(posX_, posY_, 0xFF000000);
+        }
+        return;
+    }
 
     wrapper_->Draw(posX_, posY_);
 }

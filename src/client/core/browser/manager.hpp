@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <atomic>
 #include <bitset>
@@ -186,6 +186,7 @@ public:
         return browsers_;
     }
     bool IsAnyBrowserVisible() const;
+    bool IsBrowserVisible(int id) const;
     bool IsAnyBrowserFocused() const;
     cef_cursor_type_t GetCursorType() const
     {
