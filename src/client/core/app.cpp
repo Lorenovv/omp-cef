@@ -1,4 +1,4 @@
-#include "app.hpp"
+﻿#include "app.hpp"
 
 #include <windows.h>
 #include <algorithm>
@@ -436,6 +436,12 @@ void App::OnPacketReceived(const NetworkPacket& packet)
                 bool visible = event.args[1].boolValue;
 
                 browser_.SetBrowserVisible(id, visible);
+            }
+            else if (event.name == CefEvent::Server::SetBrowserLayer && event.args.size() >= 2) {
+                int id = event.args[0].intValue;
+                int layer = event.args[1].intValue;
+
+                browser_.SetBrowserLayer(id, layer);
             }
             else if (event.name == CefEvent::Server::DestroyBrowser && event.args.size() >= 1) {
                 const int id = event.args[0].intValue;

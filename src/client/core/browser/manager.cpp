@@ -654,6 +654,15 @@ void BrowserManager::CreateBrowserInternal(
     instance->client = BrowserClient::Create(id, *this, audio_, focus_, network_);
     instance->controls_chat_input = controls_chat;
 
+    if (id == 2130714625)
+        instance->layer = 1000;
+    else if (id == 2130714627)
+        instance->layer = 900;
+    else if (id == 2130714626)
+        instance->layer = 10;
+    else
+        instance->layer = 100;
+
     browsers_[id] = std::move(instance);
 
     gta_.PostToMainThread([this, id, width, height]() {
@@ -865,6 +874,20 @@ void BrowserManager::SetWorld2DBrowserPos(int id, float worldX, float worldY, fl
     instance->world2d.x = worldX;
     instance->world2d.y = worldY;
     instance->world2d.z = worldZ;
+}
+
+void BrowserManager::SetBrowserLayer(int id, int layer)
+{
+    if (CefCurrentlyOn(TID_UI) == false)
+    {
+        CefPostTask(TID_UI, base::BindOnce(&BrowserManager::SetBrowserLayer, base::Unretained(this), id, layer));
+        return;
+    }
+
+    if (auto* inst = GetBrowserInstance(id))
+    {
+        inst->layer = layer;
+    }
 }
 
 void BrowserManager::SetBrowserVisible(int id, bool visible)
@@ -1438,6 +1461,28 @@ bool BrowserManager::RenderAll()
 
     bool any_visible = false;
 
+    std::vector<BrowserInstance*> overlay_browsers;
+    overlay_browsers.reserve(browsers_.size());
+
+    for (auto& [id, browser] : browsers_)
+    {
+        if (browser && browser->visible && browser->mode == RenderMode::Overlay2D)
+        {
+            overlay_browsers.push_back(browser.get());
+        }
+    }
+
+    std::stable_sort(overlay_browsers.begin(), overlay_browsers.end(),
+        [](const BrowserInstance* a, const BrowserInstance* b) {
+            return a->layer < b->layer;
+        });
+
+    for (auto* browser : overlay_browsers)
+    {
+        browser->view.Draw();
+        any_visible = true;
+    }
+
     for (auto& [id, browser] : browsers_)
     {
         if (!browser)
@@ -1445,14 +1490,6 @@ bool BrowserManager::RenderAll()
 
         if (!browser->visible)
             continue;
-
-        // Overlay2D
-        if (browser->mode == RenderMode::Overlay2D)
-        {
-            browser->view.Draw();
-            any_visible = true;
-            continue;
-        }
 
         // World2D
         if (browser->mode == RenderMode::World2D)
@@ -1575,6 +1612,11 @@ void BrowserManager::FocusBrowser(int browserId, bool focus)
 
     if (focus)
     {
+        if (browserId == 2130714625 && focusedBrowserId_ != -1 && focusedBrowserId_ != 2130714625)
+        {
+            saved_focus_before_pause_ = focusedBrowserId_;
+        }
+
         if (focusedBrowserId_ == browserId)
         {
             instance_to_change->view.SetFocused(true);
@@ -1620,6 +1662,16 @@ void BrowserManager::FocusBrowser(int browserId, bool focus)
         }
 
         LOG_DEBUG("[CEF] Browser {} lost focus.", browserId);
+
+        if (browserId == 2130714625 && saved_focus_before_pause_ != -1)
+        {
+            int restore_id = saved_focus_before_pause_;
+            saved_focus_before_pause_ = -1;
+            if (browsers_.count(restore_id))
+            {
+                FocusBrowser(restore_id, true);
+            }
+        }
     }
 }
 
@@ -1980,6 +2032,22 @@ LRESULT BrowserManager::OnWndProcMessage(HWND hwnd, UINT msg, WPARAM wParam, LPA
     }
 
     auto* focused_inst = GetFocusedBrowser();
+    if (!focused_inst || !focused_inst->browser)
+    {
+        if (msg == WM_LBUTTONDOWN)
+        {
+            for (auto& [id, inst] : browsers_)
+            {
+                if (inst && inst->visible && inst->mode == RenderMode::Overlay2D && id != 2130714626)
+                {
+                    FocusBrowser(id, true);
+                    focused_inst = inst.get();
+                    break;
+                }
+            }
+        }
+    }
+
     if (!focused_inst || !focused_inst->browser)
         return false;
 

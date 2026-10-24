@@ -73,6 +73,7 @@ struct BrowserInstance
     bool visible = true;
     bool controls_chat_input = true;
     bool closing = false;
+    int layer = 0;
 
     std::atomic<bool> clear_texture{ false };
 
@@ -131,6 +132,7 @@ public:
     void CreateWorld2DBrowser(int id, const std::string& url, float worldX, float worldY, float worldZ, float width, float height, float offsetZ, float pivotX, float pivotY);
     void SetWorld2DBrowserPos(int id, float worldX, float worldY, float worldZ);
     void SetBrowserVisible(int id, bool visible);
+    void SetBrowserLayer(int id, int layer);
     void DestroyBrowser(int id);
     void DestroyAllBrowsers(bool keep_plugin_browsers = false);
     void ReloadBrowser(int id, bool ignoreCache);
