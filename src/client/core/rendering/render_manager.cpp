@@ -234,6 +234,24 @@ void RenderManager::PollD3D() noexcept
 
 bool RenderManager::TryInstallSystemHooks() noexcept
 {
+    // Try to hook from the live game device if it already exists (0xC97C28 in GTA SA)
+    constexpr uintptr_t kRwD3D9DeviceAddress = 0xC97C28;
+    IDirect3DDevice9* gameDevice = *reinterpret_cast<IDirect3DDevice9**>(kRwD3D9DeviceAddress);
+    if (gameDevice && IsReadablePointer(gameDevice, sizeof(void*)))
+    {
+        EnsureDeviceHooksInstalled(gameDevice);
+        if (device_hooks_installed_)
+        {
+            LOG_INFO("[D3D9] Deferred system hooks installed from live game device (0xC97C28).");
+            return true;
+        }
+    }
+
+    // When ENB is loaded, NEVER create a dummy device - it breaks ENB's internal singleton device state.
+    // Instead, wait for the live game device to appear at 0xC97C28.
+    if (::GetModuleHandleA("enbseries.asi") != nullptr)
+        return false;
+
     IDirect3DDevice9* dummy{};
     if (!CreateDummyDevice(&dummy))
         return false;
