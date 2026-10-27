@@ -84,77 +84,7 @@ namespace
         return (hMod == hD3D9);
     }
 
-    IDirect3DDevice9* UnwrapToSystemD3D9Device(IDirect3DDevice9* dev) noexcept
-    {
-        if (!dev || !RenderManager::IsReadablePointer(dev, sizeof(void*)))
-            return nullptr;
 
-        void** vt = *reinterpret_cast<void***>(dev);
-        if (vt && RenderManager::IsReadablePointer(vt, sizeof(void*) * 64))
-        {
-            if (IsSystemD3D9Address(vt[RenderManager::idxPresent]))
-                return dev;
-        }
-
-        std::vector<IDirect3DDevice9*> to_scan = { dev };
-
-        // Also inspect samp.dll's underlying device pointer at offset 0x26E888
-        HMODULE hSamp = ::GetModuleHandleA("samp.dll");
-        if (hSamp)
-        {
-            const uintptr_t sampBase = reinterpret_cast<uintptr_t>(hSamp);
-            auto* pSampDev = reinterpret_cast<IDirect3DDevice9**>(sampBase + 0x26E888);
-            if (RenderManager::IsReadablePointer(pSampDev, sizeof(void*)) && *pSampDev)
-            {
-                to_scan.push_back(*pSampDev);
-            }
-        }
-
-        for (size_t step = 0; step < to_scan.size() && step < 16; ++step)
-        {
-            IDirect3DDevice9* current = to_scan[step];
-            if (!current || !RenderManager::IsReadablePointer(current, 256))
-                continue;
-
-            uintptr_t* fields = reinterpret_cast<uintptr_t*>(current);
-            // Scan first 64 DWORDs of the object for child pointers
-            for (size_t i = 1; i < 64; ++i)
-            {
-                const uintptr_t candidate = fields[i];
-                if (candidate > 0x10000 && candidate < 0x7FFF0000 &&
-                    RenderManager::IsReadablePointer(reinterpret_cast<void*>(candidate), sizeof(void*)))
-                {
-                    void** candidateVt = *reinterpret_cast<void***>(candidate);
-                    if (candidateVt && RenderManager::IsReadablePointer(candidateVt, sizeof(void*) * 64))
-                    {
-                        void* presentFn = candidateVt[RenderManager::idxPresent];
-                        if (IsSystemD3D9Address(presentFn))
-                        {
-                            LOG_INFO("[D3D9] Unwrapped device from proxy {} to real d3d9.dll device at {}",
-                                static_cast<void*>(current), reinterpret_cast<void*>(candidate));
-                            return reinterpret_cast<IDirect3DDevice9*>(candidate);
-                        }
-
-                        bool already_queued = false;
-                        for (auto* q : to_scan)
-                        {
-                            if (q == reinterpret_cast<IDirect3DDevice9*>(candidate))
-                            {
-                                already_queued = true;
-                                break;
-                            }
-                        }
-                        if (!already_queued && to_scan.size() < 16)
-                        {
-                            to_scan.push_back(reinterpret_cast<IDirect3DDevice9*>(candidate));
-                        }
-                    }
-                }
-            }
-        }
-
-        return nullptr;
-    }
 
     HWND CreateDummyWindow()
     {
@@ -379,6 +309,78 @@ void RenderManager::PollD3D() noexcept
 
     // The system Present hook captures the underlying real device. Never
     // replace it with SA-MP's outer proxy from gGameDevice.
+}
+
+IDirect3DDevice9* RenderManager::UnwrapToSystemD3D9Device(IDirect3DDevice9* dev) noexcept
+{
+    if (!dev || !IsReadablePointer(dev, sizeof(void*)))
+        return nullptr;
+
+    void** vt = *reinterpret_cast<void***>(dev);
+    if (vt && IsReadablePointer(vt, sizeof(void*) * 64))
+    {
+        if (IsSystemD3D9Address(vt[idxPresent]))
+            return dev;
+    }
+
+    std::vector<IDirect3DDevice9*> to_scan = { dev };
+
+    // Also inspect samp.dll's underlying device pointer at offset 0x26E888
+    HMODULE hSamp = ::GetModuleHandleA("samp.dll");
+    if (hSamp)
+    {
+        const uintptr_t sampBase = reinterpret_cast<uintptr_t>(hSamp);
+        auto* pSampDev = reinterpret_cast<IDirect3DDevice9**>(sampBase + 0x26E888);
+        if (IsReadablePointer(pSampDev, sizeof(void*)) && *pSampDev)
+        {
+            to_scan.push_back(*pSampDev);
+        }
+    }
+
+    for (size_t step = 0; step < to_scan.size() && step < 16; ++step)
+    {
+        IDirect3DDevice9* current = to_scan[step];
+        if (!current || !IsReadablePointer(current, 256))
+            continue;
+
+        uintptr_t* fields = reinterpret_cast<uintptr_t*>(current);
+        // Scan first 64 DWORDs of the object for child pointers
+        for (size_t i = 1; i < 64; ++i)
+        {
+            const uintptr_t candidate = fields[i];
+            if (candidate > 0x10000 && candidate < 0x7FFF0000 &&
+                IsReadablePointer(reinterpret_cast<void*>(candidate), sizeof(void*)))
+            {
+                void** candidateVt = *reinterpret_cast<void***>(candidate);
+                if (candidateVt && IsReadablePointer(candidateVt, sizeof(void*) * 64))
+                {
+                    void* presentFn = candidateVt[idxPresent];
+                    if (IsSystemD3D9Address(presentFn))
+                    {
+                        LOG_INFO("[D3D9] Unwrapped device from proxy {} to real d3d9.dll device at {}",
+                            static_cast<void*>(current), reinterpret_cast<void*>(candidate));
+                        return reinterpret_cast<IDirect3DDevice9*>(candidate);
+                    }
+
+                    bool already_queued = false;
+                    for (auto* q : to_scan)
+                    {
+                        if (q == reinterpret_cast<IDirect3DDevice9*>(candidate))
+                        {
+                            already_queued = true;
+                            break;
+                        }
+                    }
+                    if (!already_queued && to_scan.size() < 16)
+                    {
+                        to_scan.push_back(reinterpret_cast<IDirect3DDevice9*>(candidate));
+                    }
+                }
+            }
+        }
+    }
+
+    return nullptr;
 }
 
 bool RenderManager::TryInstallSystemHooks() noexcept
