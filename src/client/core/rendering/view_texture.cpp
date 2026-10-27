@@ -1,4 +1,4 @@
-﻿#include "view_texture.hpp"
+#include "view_texture.hpp"
 #include "system/logger.hpp"
 #include <game_sa/RenderWare.h>
 #include <cstring>
@@ -197,6 +197,34 @@ void ViewTexture::Draw(int x, int y)
     if (!device_ || !texture_) 
         return;
 
+    // 1. Save existing D3D9 device state so we never disrupt ENB or the game
+    IDirect3DStateBlock9* stateBlock = nullptr;
+    if (SUCCEEDED(device_->CreateStateBlock(D3DSBT_ALL, &stateBlock)) && stateBlock)
+    {
+        stateBlock->Capture();
+    }
+
+    // 2. Ensure the active render target is the back buffer
+    IDirect3DSurface9* backBuffer = nullptr;
+    if (SUCCEEDED(device_->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer)) && backBuffer)
+    {
+        device_->SetRenderTarget(0, backBuffer);
+        backBuffer->Release();
+    }
+
+    // 3. Clear any custom pixel/vertex shaders leftover from ENB post-processing
+    device_->SetPixelShader(nullptr);
+    device_->SetVertexShader(nullptr);
+
+    // 4. In Direct3D 9, DrawPrimitive requires BeginScene.
+    // If the scene was already ended (as is the case right before Present), begin it now.
+    bool beganScene = false;
+    if (SUCCEEDED(device_->BeginScene()))
+    {
+        beganScene = true;
+    }
+
+    // 5. Configure texture and blending states
     device_->SetTexture(0, texture_);
     device_->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
     device_->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
@@ -208,6 +236,15 @@ void ViewTexture::Draw(int x, int y)
 
     device_->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
     device_->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+
+    device_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+    device_->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    device_->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    device_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+    device_->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    device_->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+    device_->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+    device_->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 
     const float w = static_cast<float>(width_);
     const float h = static_cast<float>(height_);
@@ -222,6 +259,19 @@ void ViewTexture::Draw(int x, int y)
 
     device_->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
     device_->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(Vertex));
+
+    // 6. End scene if we began it
+    if (beganScene)
+    {
+        device_->EndScene();
+    }
+
+    // 7. Restore original device state
+    if (stateBlock)
+    {
+        stateBlock->Apply();
+        stateBlock->Release();
+    }
 }
 
 void ViewTexture::OnDeviceLost()

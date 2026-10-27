@@ -1,8 +1,9 @@
-﻿#include "render_manager.hpp"
+#include "render_manager.hpp"
 
 #include <windows.h>
 #include <new>
 #include <string>
+#include <vector>
 
 #include "system/logger.hpp"
 #include "hooks/hook_manager.hpp"
@@ -67,6 +68,94 @@ namespace
         return true;
     }
 
+    bool IsSystemD3D9Address(void* fn) noexcept
+    {
+        if (!fn)
+            return false;
+        HMODULE hD3D9 = ::GetModuleHandleA("d3d9.dll");
+        if (!hD3D9)
+            return false;
+        HMODULE hMod = nullptr;
+        if (!::GetModuleHandleExA(
+                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                reinterpret_cast<LPCSTR>(fn),
+                &hMod))
+            return false;
+        return (hMod == hD3D9);
+    }
+
+    IDirect3DDevice9* UnwrapToSystemD3D9Device(IDirect3DDevice9* dev) noexcept
+    {
+        if (!dev || !RenderManager::IsReadablePointer(dev, sizeof(void*)))
+            return nullptr;
+
+        void** vt = *reinterpret_cast<void***>(dev);
+        if (vt && RenderManager::IsReadablePointer(vt, sizeof(void*) * 64))
+        {
+            if (IsSystemD3D9Address(vt[RenderManager::idxPresent]))
+                return dev;
+        }
+
+        std::vector<IDirect3DDevice9*> to_scan = { dev };
+
+        // Also inspect samp.dll's underlying device pointer at offset 0x26E888
+        HMODULE hSamp = ::GetModuleHandleA("samp.dll");
+        if (hSamp)
+        {
+            const uintptr_t sampBase = reinterpret_cast<uintptr_t>(hSamp);
+            auto* pSampDev = reinterpret_cast<IDirect3DDevice9**>(sampBase + 0x26E888);
+            if (RenderManager::IsReadablePointer(pSampDev, sizeof(void*)) && *pSampDev)
+            {
+                to_scan.push_back(*pSampDev);
+            }
+        }
+
+        for (size_t step = 0; step < to_scan.size() && step < 16; ++step)
+        {
+            IDirect3DDevice9* current = to_scan[step];
+            if (!current || !RenderManager::IsReadablePointer(current, 256))
+                continue;
+
+            uintptr_t* fields = reinterpret_cast<uintptr_t*>(current);
+            // Scan first 64 DWORDs of the object for child pointers
+            for (size_t i = 1; i < 64; ++i)
+            {
+                const uintptr_t candidate = fields[i];
+                if (candidate > 0x10000 && candidate < 0x7FFF0000 &&
+                    RenderManager::IsReadablePointer(reinterpret_cast<void*>(candidate), sizeof(void*)))
+                {
+                    void** candidateVt = *reinterpret_cast<void***>(candidate);
+                    if (candidateVt && RenderManager::IsReadablePointer(candidateVt, sizeof(void*) * 64))
+                    {
+                        void* presentFn = candidateVt[RenderManager::idxPresent];
+                        if (IsSystemD3D9Address(presentFn))
+                        {
+                            LOG_INFO("[D3D9] Unwrapped device from proxy {} to real d3d9.dll device at {}",
+                                static_cast<void*>(current), reinterpret_cast<void*>(candidate));
+                            return reinterpret_cast<IDirect3DDevice9*>(candidate);
+                        }
+
+                        bool already_queued = false;
+                        for (auto* q : to_scan)
+                        {
+                            if (q == reinterpret_cast<IDirect3DDevice9*>(candidate))
+                            {
+                                already_queued = true;
+                                break;
+                            }
+                        }
+                        if (!already_queued && to_scan.size() < 16)
+                        {
+                            to_scan.push_back(reinterpret_cast<IDirect3DDevice9*>(candidate));
+                        }
+                    }
+                }
+            }
+        }
+
+        return nullptr;
+    }
+
     HWND CreateDummyWindow()
     {
         constexpr const char* className = "omp_cef_d3d9_deferred";
@@ -93,21 +182,10 @@ namespace
             return false;
 
         *outDevice = nullptr;
-        using Create9Fn = IDirect3D9* (WINAPI*)(UINT);
-        const auto create9 = reinterpret_cast<Create9Fn>(ResolveD3D9Export("Direct3DCreate9"));
-        if (!create9)
-            return false;
-
-        IDirect3D9* direct = create9(D3D_SDK_VERSION);
-        if (!direct)
-            return false;
 
         const HWND hwnd = CreateDummyWindow();
         if (!hwnd)
-        {
-            direct->Release();
             return false;
-        }
 
         D3DPRESENT_PARAMETERS params{};
         params.Windowed = TRUE;
@@ -118,13 +196,84 @@ namespace
         params.BackBufferHeight = 16;
         params.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 
+        // 1. Try Direct3DCreate9Ex first - it is never hooked by ENB
+        using Create9ExFn = HRESULT(WINAPI*)(UINT, IDirect3D9Ex**);
+        const auto create9Ex = reinterpret_cast<Create9ExFn>(ResolveD3D9Export("Direct3DCreate9Ex"));
+        if (create9Ex)
+        {
+            IDirect3D9Ex* directEx = nullptr;
+            if (SUCCEEDED(create9Ex(D3D_SDK_VERSION, &directEx)) && directEx)
+            {
+                IDirect3DDevice9Ex* devEx = nullptr;
+                HRESULT hr = directEx->CreateDeviceEx(
+                    D3DADAPTER_DEFAULT,
+                    D3DDEVTYPE_NULLREF,
+                    hwnd,
+                    D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+                    &params,
+                    nullptr,
+                    &devEx);
+                if (FAILED(hr))
+                {
+                    hr = directEx->CreateDeviceEx(
+                        D3DADAPTER_DEFAULT,
+                        D3DDEVTYPE_HAL,
+                        hwnd,
+                        D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+                        &params,
+                        nullptr,
+                        &devEx);
+                }
+                directEx->Release();
+
+                if (SUCCEEDED(hr) && devEx)
+                {
+                    ::DestroyWindow(hwnd);
+                    *outDevice = devEx;
+                    return true;
+                }
+            }
+        }
+
+        // 2. Fallback to standard Direct3DCreate9
+        using Create9Fn = IDirect3D9* (WINAPI*)(UINT);
+        const auto create9 = reinterpret_cast<Create9Fn>(ResolveD3D9Export("Direct3DCreate9"));
+        if (!create9)
+        {
+            ::DestroyWindow(hwnd);
+            return false;
+        }
+
+        IDirect3D9* direct = create9(D3D_SDK_VERSION);
+        if (!direct)
+        {
+            ::DestroyWindow(hwnd);
+            return false;
+        }
+
+        // Try D3DDEVTYPE_NULLREF first to avoid triggering ENB's HAL hook
         HRESULT result = direct->CreateDevice(
             D3DADAPTER_DEFAULT,
-            D3DDEVTYPE_HAL,
+            D3DDEVTYPE_NULLREF,
             hwnd,
             D3DCREATE_SOFTWARE_VERTEXPROCESSING,
             &params,
             outDevice);
+
+        if (FAILED(result) || !*outDevice)
+        {
+            // Only use HAL if enbseries.asi is NOT loaded to prevent breaking ENB singleton
+            if (::GetModuleHandleA("enbseries.asi") == nullptr)
+            {
+                result = direct->CreateDevice(
+                    D3DADAPTER_DEFAULT,
+                    D3DDEVTYPE_HAL,
+                    hwnd,
+                    D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+                    &params,
+                    outDevice);
+            }
+        }
 
         ::DestroyWindow(hwnd);
         direct->Release();
@@ -234,36 +383,48 @@ void RenderManager::PollD3D() noexcept
 
 bool RenderManager::TryInstallSystemHooks() noexcept
 {
-    // Try to hook from the live game device if it already exists (0xC97C28 in GTA SA)
+    // 1. Try to unwrap from live game device if it already exists (0xC97C28 in GTA SA)
     constexpr uintptr_t kRwD3D9DeviceAddress = 0xC97C28;
     IDirect3DDevice9* gameDevice = *reinterpret_cast<IDirect3DDevice9**>(kRwD3D9DeviceAddress);
     if (gameDevice && IsReadablePointer(gameDevice, sizeof(void*)))
     {
-        EnsureDeviceHooksInstalled(gameDevice);
+        IDirect3DDevice9* realDevice = UnwrapToSystemD3D9Device(gameDevice);
+        if (realDevice)
+        {
+            EnsureDeviceHooksInstalled(realDevice);
+            if (device_hooks_installed_)
+            {
+                LOG_INFO("[D3D9] Deferred system hooks installed from unwrapped real d3d9.dll device.");
+                return true;
+            }
+        }
+        else if (::GetModuleHandleA("enbseries.asi") == nullptr)
+        {
+            // Without ENB, gameDevice can be hooked directly as fallback
+            EnsureDeviceHooksInstalled(gameDevice);
+            if (device_hooks_installed_)
+            {
+                LOG_INFO("[D3D9] Deferred system hooks installed from live game device (0xC97C28).");
+                return true;
+            }
+        }
+    }
+
+    // 2. Try creating dummy device (safe NULLREF or Direct3DCreate9Ex)
+    IDirect3DDevice9* dummy{};
+    if (CreateDummyDevice(&dummy))
+    {
+        EnsureDeviceHooksInstalled(dummy);
+        dummy->Release();
+
         if (device_hooks_installed_)
         {
-            LOG_INFO("[D3D9] Deferred system hooks installed from live game device (0xC97C28).");
+            LOG_INFO("[D3D9] Deferred system hooks installed from dummy device.");
             return true;
         }
     }
 
-    // When ENB is loaded, NEVER create a dummy device - it breaks ENB's internal singleton device state.
-    // Instead, wait for the live game device to appear at 0xC97C28.
-    if (::GetModuleHandleA("enbseries.asi") != nullptr)
-        return false;
-
-    IDirect3DDevice9* dummy{};
-    if (!CreateDummyDevice(&dummy))
-        return false;
-
-    EnsureDeviceHooksInstalled(dummy);
-    dummy->Release();
-
-    if (!device_hooks_installed_)
-        return false;
-
-    LOG_INFO("[D3D9] Deferred system hooks installed.");
-    return true;
+    return false;
 }
 
 void RenderManager::AttachDevice(IDirect3D9* direct, IDirect3DDevice9* device, const D3DPRESENT_PARAMETERS& params) noexcept
