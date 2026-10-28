@@ -226,6 +226,21 @@ namespace
         }
     }
 
+    static void SafeInvokeDxutRender(uintptr_t fnAddr, void* pThis, float elapsedTime) noexcept
+    {
+        if (!fnAddr || !pThis)
+            return;
+
+        __try
+        {
+            using DxutRenderFn = void(__thiscall*)(void*, float);
+            reinterpret_cast<DxutRenderFn>(fnAddr)(pThis, elapsedTime);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
+    }
+
     static bool IsEnbActive() noexcept
     {
         return (::GetModuleHandleA("enbseries.asi") != nullptr ||
@@ -798,6 +813,9 @@ void RenderManager::RedrawSampUI(IDirect3DDevice9* device) noexcept
     uintptr_t fnDeathDrawOffset = 0x69B70;
     uintptr_t pScoreboardOffset = 0x26E89C;
     uintptr_t fnScoreboardDrawOffset = 0x713D0;
+    uintptr_t pGameUiOffset = 0x26E96C;
+    uintptr_t pGameUi2Offset = 0x26E974;
+    uintptr_t fnDxutRenderOffset = 0x901D0;
 
     switch (version)
     {
@@ -825,6 +843,9 @@ void RenderManager::RedrawSampUI(IDirect3DDevice9* device) noexcept
             fnDeathDrawOffset = 0x69B70;
             pScoreboardOffset = 0x26E89C;
             fnScoreboardDrawOffset = 0x713D0;
+            pGameUiOffset = 0x26E96C;
+            pGameUi2Offset = 0x26E974;
+            fnDxutRenderOffset = 0x901D0;
             break;
 
         case SampVersion::V037R5: // 0.3.7-R5
@@ -898,13 +919,59 @@ void RenderManager::RedrawSampUI(IDirect3DDevice9* device) noexcept
         }
     }
 
-    // 2. Draw Input Box
-    if (pInputOffset && fnInputDrawOffset)
+    // 2. Input Box (Cursor logic + DXUT Edit Control Rendering)
+    void** ppInput = pInputOffset ? reinterpret_cast<void**>(sampBase + pInputOffset) : nullptr;
+    if (ppInput && IsReadablePointer(ppInput, sizeof(void*)) && *ppInput && IsReadablePointer(*ppInput, sizeof(void*)))
     {
-        void** ppInput = reinterpret_cast<void**>(sampBase + pInputOffset);
-        if (IsReadablePointer(ppInput, sizeof(void*)) && *ppInput && IsReadablePointer(*ppInput, sizeof(void*)))
+        if (fnInputDrawOffset)
         {
             SafeInvokeDraw(sampBase + fnInputDrawOffset, *ppInput);
+        }
+    }
+
+    // 2b. Draw Chat Input Box (CDXUTDialog::OnRender renders the editbox, typed text and blinking caret)
+    void* pChatInputUi = nullptr;
+    if (pGameUiOffset)
+    {
+        void** ppGameUi = reinterpret_cast<void**>(sampBase + pGameUiOffset);
+        if (IsReadablePointer(ppGameUi, sizeof(void*)) && *ppGameUi)
+            pChatInputUi = *ppGameUi;
+    }
+    if (!pChatInputUi && ppInput && *ppInput && IsReadablePointer(*ppInput, 8))
+    {
+        pChatInputUi = *reinterpret_cast<void**>(reinterpret_cast<uintptr_t>(*ppInput) + 4);
+    }
+    if (pChatInputUi && fnDxutRenderOffset && IsReadablePointer(pChatInputUi, sizeof(void*)))
+    {
+        SafeInvokeDxutRender(sampBase + fnDxutRenderOffset, pChatInputUi, 10.0f);
+    }
+
+    // 2c. Secondary DXUT Dialog if present
+    if (pGameUi2Offset && fnDxutRenderOffset)
+    {
+        void** ppGameUi2 = reinterpret_cast<void**>(sampBase + pGameUi2Offset);
+        if (IsReadablePointer(ppGameUi2, sizeof(void*)) && *ppGameUi2 && IsReadablePointer(*ppGameUi2, sizeof(void*)))
+        {
+            SafeInvokeDxutRender(sampBase + fnDxutRenderOffset, *ppGameUi2, 10.0f);
+        }
+    }
+
+    // 2d. TextDraws
+    void** ppNetGame = reinterpret_cast<void**>(sampBase + 0x26E8DC);
+    if (IsReadablePointer(ppNetGame, sizeof(void*)) && *ppNetGame)
+    {
+        uintptr_t netGame = reinterpret_cast<uintptr_t>(*ppNetGame);
+        if (IsReadablePointer(reinterpret_cast<void*>(netGame + 0x3DE), sizeof(void*)))
+        {
+            uintptr_t pPool = *reinterpret_cast<uintptr_t*>(netGame + 0x3DE);
+            if (pPool && IsReadablePointer(reinterpret_cast<void*>(pPool + 0x1C), sizeof(void*)))
+            {
+                void* pTextDrawPool = *reinterpret_cast<void**>(pPool + 0x1C);
+                if (pTextDrawPool && IsReadablePointer(pTextDrawPool, sizeof(void*)))
+                {
+                    SafeInvokeDraw(sampBase + 0x1340, pTextDrawPool);
+                }
+            }
         }
     }
 
