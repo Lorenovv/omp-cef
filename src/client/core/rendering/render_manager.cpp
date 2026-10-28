@@ -8,6 +8,7 @@
 #include "system/logger.hpp"
 #include "hooks/hook_manager.hpp"
 #include "hooks/d3d9.hpp"
+#include "samp/addresses.hpp"
 
 namespace
 {
@@ -210,6 +211,27 @@ namespace
         return SUCCEEDED(result) && *outDevice;
     }
 
+    static void SafeInvokeDraw(uintptr_t fnAddr, void* pThis) noexcept
+    {
+        if (!fnAddr || !pThis)
+            return;
+
+        __try
+        {
+            using DrawFn = void(__thiscall*)(void*);
+            reinterpret_cast<DrawFn>(fnAddr)(pThis);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
+    }
+
+    static bool IsEnbActive() noexcept
+    {
+        return (::GetModuleHandleA("enbseries.asi") != nullptr ||
+                ::GetModuleHandleA("enb.asi") != nullptr ||
+                ::GetModuleHandleA("d3d9_enb.dll") != nullptr);
+    }
 }
 
 bool RenderManager::IsReadablePointer(const void* pointer, size_t size) noexcept
@@ -742,6 +764,192 @@ HRESULT __stdcall RenderManager::hkEndScene(IDirect3DDevice9* self)
     return hr;
 }
 
+void RenderManager::RedrawSampUI(IDirect3DDevice9* device) noexcept
+{
+    if (!device)
+        return;
+
+    // Only redraw when Boris Vorontsov ENB is active and overwrites the backbuffer in Present
+    if (!IsEnbActive())
+        return;
+
+    HMODULE hSamp = ::GetModuleHandleA("samp.dll");
+    if (!hSamp)
+        return;
+
+    const uintptr_t sampBase = reinterpret_cast<uintptr_t>(hSamp);
+
+    static bool loggedEnb = false;
+    if (!loggedEnb)
+    {
+        loggedEnb = true;
+        LOG_INFO("[D3D9] ENB active: SA-MP UI redraw enabled in Present (chat, input, dialogs)");
+    }
+
+    // Determine offsets based on SA-MP version
+    auto version = SampAddresses::Instance().Version();
+    uintptr_t pChatOffset = 0x26E8C8;
+    uintptr_t fnChatDrawOffset = 0x67680;
+    uintptr_t pInputOffset = 0x26E8CC;
+    uintptr_t fnInputDrawOffset = 0x68F80;
+    uintptr_t pDialogOffset = 0x26E898;
+    uintptr_t fnDialogDrawOffset = 0x6F140;
+    uintptr_t pDeathOffset = 0x26E8D0;
+    uintptr_t fnDeathDrawOffset = 0x69B70;
+    uintptr_t pScoreboardOffset = 0x26E89C;
+    uintptr_t fnScoreboardDrawOffset = 0x713D0;
+
+    switch (version)
+    {
+        case SampVersion::V037: // 0.3.7-R1
+            pChatOffset = 0x21A0E4;
+            fnChatDrawOffset = 0x64230;
+            pInputOffset = 0x21A0E8;
+            fnInputDrawOffset = 0x65A50;
+            pDialogOffset = 0x21A0B8;
+            fnDialogDrawOffset = 0x6B240;
+            pDeathOffset = 0x21A0EC;
+            fnDeathDrawOffset = 0x66640;
+            pScoreboardOffset = 0x21A0B4;
+            fnScoreboardDrawOffset = 0x6AA10;
+            break;
+
+        case SampVersion::V037R3: // 0.3.7-R3
+            pChatOffset = 0x26E8C8;
+            fnChatDrawOffset = 0x67680;
+            pInputOffset = 0x26E8CC;
+            fnInputDrawOffset = 0x68F80;
+            pDialogOffset = 0x26E898;
+            fnDialogDrawOffset = 0x6F140;
+            pDeathOffset = 0x26E8D0;
+            fnDeathDrawOffset = 0x69B70;
+            pScoreboardOffset = 0x26E89C;
+            fnScoreboardDrawOffset = 0x713D0;
+            break;
+
+        case SampVersion::V037R5: // 0.3.7-R5
+            pChatOffset = 0x26EB80;
+            fnChatDrawOffset = 0x67E00;
+            pInputOffset = 0x26EB84;
+            fnInputDrawOffset = 0x696F0;
+            pDialogOffset = 0x26EB50;
+            fnDialogDrawOffset = 0x6F890;
+            pDeathOffset = 0x26EB88;
+            fnDeathDrawOffset = 0x6A2E0;
+            pScoreboardOffset = 0x26EB4C;
+            fnScoreboardDrawOffset = 0x6F0B0;
+            break;
+
+        case SampVersion::V03DLR1: // 0.3.DL
+            pChatOffset = 0x2ACA10;
+            fnChatDrawOffset = 0x67870;
+            pInputOffset = 0x2ACA14;
+            fnInputDrawOffset = 0x69130;
+            pDialogOffset = 0x2AC9E0;
+            fnDialogDrawOffset = 0x6F2D0;
+            pDeathOffset = 0x26EB88;
+            fnDeathDrawOffset = 0x6A2E0;
+            pScoreboardOffset = 0x2AC9DC;
+            fnScoreboardDrawOffset = 0x6EAF0;
+            break;
+
+        default:
+            break;
+    }
+
+    // Save full D3D9 state
+    IDirect3DStateBlock9* stateBlock = nullptr;
+    device->CreateStateBlock(D3DSBT_ALL, &stateBlock);
+
+    // Ensure BackBuffer is RenderTarget 0
+    IDirect3DSurface9* backBuffer = nullptr;
+    if (SUCCEEDED(device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer)))
+    {
+        device->SetRenderTarget(0, backBuffer);
+
+        D3DSURFACE_DESC desc{};
+        if (SUCCEEDED(backBuffer->GetDesc(&desc)))
+        {
+            D3DVIEWPORT9 vp{ 0, 0, desc.Width, desc.Height, 0.0f, 1.0f };
+            device->SetViewport(&vp);
+        }
+
+        backBuffer->Release();
+    }
+
+    // Clear shaders left behind by ENB's post-processing quad
+    device->SetPixelShader(nullptr);
+    device->SetVertexShader(nullptr);
+
+    // In D3D9, sprite and primitive rendering requires an active scene
+    bool beganScene = false;
+    if (SUCCEEDED(device->BeginScene()))
+    {
+        beganScene = true;
+    }
+
+    // 1. Draw Chat
+    if (pChatOffset && fnChatDrawOffset)
+    {
+        void** ppChat = reinterpret_cast<void**>(sampBase + pChatOffset);
+        if (IsReadablePointer(ppChat, sizeof(void*)) && *ppChat && IsReadablePointer(*ppChat, sizeof(void*)))
+        {
+            SafeInvokeDraw(sampBase + fnChatDrawOffset, *ppChat);
+        }
+    }
+
+    // 2. Draw Input Box
+    if (pInputOffset && fnInputDrawOffset)
+    {
+        void** ppInput = reinterpret_cast<void**>(sampBase + pInputOffset);
+        if (IsReadablePointer(ppInput, sizeof(void*)) && *ppInput && IsReadablePointer(*ppInput, sizeof(void*)))
+        {
+            SafeInvokeDraw(sampBase + fnInputDrawOffset, *ppInput);
+        }
+    }
+
+    // 3. Draw Death Window (killfeed)
+    if (pDeathOffset && fnDeathDrawOffset)
+    {
+        void** ppDeath = reinterpret_cast<void**>(sampBase + pDeathOffset);
+        if (IsReadablePointer(ppDeath, sizeof(void*)) && *ppDeath && IsReadablePointer(*ppDeath, sizeof(void*)))
+        {
+            SafeInvokeDraw(sampBase + fnDeathDrawOffset, *ppDeath);
+        }
+    }
+
+    // 4. Draw Dialog
+    if (pDialogOffset && fnDialogDrawOffset)
+    {
+        void** ppDialog = reinterpret_cast<void**>(sampBase + pDialogOffset);
+        if (IsReadablePointer(ppDialog, sizeof(void*)) && *ppDialog && IsReadablePointer(*ppDialog, sizeof(void*)))
+        {
+            SafeInvokeDraw(sampBase + fnDialogDrawOffset, *ppDialog);
+        }
+    }
+
+    // 5. Draw Scoreboard
+    if (pScoreboardOffset && fnScoreboardDrawOffset)
+    {
+        void** ppScoreboard = reinterpret_cast<void**>(sampBase + pScoreboardOffset);
+        if (IsReadablePointer(ppScoreboard, sizeof(void*)) && *ppScoreboard && IsReadablePointer(*ppScoreboard, sizeof(void*)))
+        {
+            SafeInvokeDraw(sampBase + fnScoreboardDrawOffset, *ppScoreboard);
+        }
+    }
+
+    if (beganScene)
+    {
+        device->EndScene();
+    }
+
+    if (stateBlock)
+    {
+        stateBlock->Apply();
+        stateBlock->Release();
+    }
+}
+
 HRESULT __stdcall RenderManager::hkPresent(IDirect3DDevice9* self, const RECT* src, const RECT* dst, HWND wnd, const RGNDATA* dirty)
 {
     auto* rm = s_self_;
@@ -755,6 +963,8 @@ HRESULT __stdcall RenderManager::hkPresent(IDirect3DDevice9* self, const RECT* s
 
     if (isGameDevice)
     {
+        rm->RedrawSampUI(self);
+
         if (rm->OnPresent)
             rm->OnPresent();
     }

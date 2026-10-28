@@ -99,6 +99,7 @@ private:
     void EnsureDeviceHooksInstalled(IDirect3DDevice9* device) noexcept;
 
     bool IsGameDeviceCandidate(const D3DPRESENT_PARAMETERS* pp, HWND presentHwnd) const noexcept;
+    void RedrawSampUI(IDirect3DDevice9* device) noexcept;
 
     static IDirect3DDevice9* UnwrapToSystemD3D9Device(IDirect3DDevice9* dev) noexcept;
     static bool IsReadablePointer(const void* ptr, size_t bytes) noexcept;
